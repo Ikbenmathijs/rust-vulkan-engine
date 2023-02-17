@@ -9,6 +9,7 @@ use app::App;
 mod app;
 mod instance;
 mod device;
+mod swapchain;
 
 fn main() -> Result<()> {
     pretty_env_logger::init();

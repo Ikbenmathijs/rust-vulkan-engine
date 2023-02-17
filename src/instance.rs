@@ -58,7 +58,7 @@ extern "system" fn debug_callback(
     severity: vk::DebugUtilsMessageSeverityFlagsEXT,
     type_: vk::DebugUtilsMessageTypeFlagsEXT,
     data: *const vk::DebugUtilsMessengerCallbackDataEXT,
-    _: *mut c_void,
+    _: *mut c_void
 ) -> vk::Bool32 {
     let data = unsafe { *data };
     let message = unsafe { CStr::from_ptr(data.message) }.to_string_lossy();

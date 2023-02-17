@@ -1,15 +1,17 @@
-use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEXT, ExtDebugUtilsExtension}};
+use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEXT, ExtDebugUtilsExtension, KhrSurfaceExtension}};
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
 use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device}};
 use log::*;
+use vulkanalia::window as vkWindow;
 
 
 #[derive(Clone, Debug, Default)]
 pub struct AppData {
     pub messenger: DebugUtilsMessengerEXT,
-    pub physical_device: vk::PhysicalDevice
+    pub physical_device: vk::PhysicalDevice,
+    pub surface: vk::SurfaceKHR
 }
 
 
@@ -28,8 +30,10 @@ impl App {
         let entry = Entry::new(loader).map_err(|e| anyhow!(e))?;
         let mut data = AppData::default();
         let instance = create_instance(window, &entry, &mut data)?;
-        data.physical_device = pick_physical_device(&instance)?;
-        let device = create_logical_device(&instance, &data.physical_device)?;
+        data.surface = vkWindow::create_surface(&instance, window)?;
+        data.physical_device = pick_physical_device(&instance, &data)?;
+        let device = create_logical_device(&instance, &data.physical_device, &data)?;
+
         return Ok(Self {entry, instance, data, device});
     }
 
@@ -42,6 +46,8 @@ impl App {
         println!("Goodbye!");
 
         self.device.destroy_device(None);
+
+        self.instance.destroy_surface_khr(self.data.surface, None);
 
         self.instance.destroy_debug_utils_messenger_ext(self.data.messenger, None);
         self.instance.destroy_instance(None);
