@@ -1,9 +1,9 @@
-use vulkanalia::{prelude::v1_0::{*, vk::KhrSurfaceExtension}, vk::{KhrSwapchainExtension, PresentModeKHR}};
+use vulkanalia::{prelude::v1_0::{*, vk::KhrSurfaceExtension}, vk::{KhrSwapchainExtension}};
 use anyhow::Result;
 use log::*;
 use winit::window::Window;
 
-use crate::app::AppData;
+use crate::{app::AppData, images::create_image_view};
 use crate::device::QueueFamilyIndices;
 
 
@@ -59,6 +59,8 @@ pub unsafe fn create_swapchain(instance: &Instance, data: &mut AppData, device: 
 
     data.swapchain_images = device.get_swapchain_images_khr(data.swapchain)?;
 
+    data.swapchain_image_format = format.format;
+
     info!("Created swapchain!");
 
     return Ok(());
@@ -111,4 +113,27 @@ impl  SwapchainSupport {
         let present_modes = instance.get_physical_device_surface_present_modes_khr(*physical_device, data.surface)?;
         return Ok(Self {capabilities, formats, present_modes});
     }
+}
+
+
+pub unsafe fn create_swapchain_image_views(data: &mut AppData, device: &Device) -> Result<()> {
+
+    let subresource = vk::ImageSubresourceRange::builder()
+        .aspect_mask(vk::ImageAspectFlags::COLOR)
+        .base_mip_level(0)
+        .level_count(1)
+        .base_array_layer(0)
+        .layer_count(1).build();
+
+    let mut image_views: Vec<vk::ImageView> = vec![];
+
+
+    for image in &data.swapchain_images {
+        image_views.push(create_image_view(image, device, data.swapchain_image_format, subresource)?);
+        debug!("Created swapchain image view");
+    }
+
+    info!("Created swapchain image views");
+
+    return Ok(());
 }

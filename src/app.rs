@@ -2,7 +2,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device}, swapchain::create_swapchain};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device}, swapchain::{create_swapchain, create_swapchain_image_views}};
 use log::*;
 use vulkanalia::window as vkWindow;
 
@@ -13,7 +13,8 @@ pub struct AppData {
     pub physical_device: vk::PhysicalDevice,
     pub surface: vk::SurfaceKHR,
     pub swapchain: vk::SwapchainKHR,
-    pub swapchain_images: Vec<vk::Image>
+    pub swapchain_images: Vec<vk::Image>,
+    pub swapchain_image_format: vk::Format
 }
 
 
@@ -35,7 +36,8 @@ impl App {
         data.surface = vkWindow::create_surface(&instance, window)?;
         data.physical_device = pick_physical_device(&instance, &data)?;
         let device = create_logical_device(&instance, &data.physical_device, &data)?;
-        create_swapchain(&instance, &mut data, &device, window);
+        create_swapchain(&instance, &mut data, &device, window)?;
+        create_swapchain_image_views(&mut data, &device)?;
 
         return Ok(Self {entry, instance, data, device});
     }
@@ -47,6 +49,8 @@ impl App {
 
     pub unsafe fn destroy(&mut self) {
         println!("Goodbye!");
+
+        
 
         self.device.destroy_swapchain_khr(self.data.swapchain, None);
 
