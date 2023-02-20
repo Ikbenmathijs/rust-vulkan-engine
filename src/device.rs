@@ -1,9 +1,11 @@
 use vulkanalia::{prelude::v1_0::*, vk::{PhysicalDevice, KhrSurfaceExtension}};
 use anyhow::{Result, anyhow};
 use log::*;
-use vulkanalia::vk::KhrSwapchainExtension;
 
 use crate::app::AppData;
+
+
+const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name];
 
 
 pub unsafe fn pick_physical_device(instance: &Instance, data: &AppData) -> Result<vk::PhysicalDevice> {
@@ -39,18 +41,21 @@ pub unsafe fn create_logical_device(instance: &Instance, physical_device: &vk::P
     let layers = [vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation").as_ptr()];
     let queue_infos = &[graphics_queue_info];
 
+    let extensions = DEVICE_EXTENSIONS.iter().map(|n| n.as_ptr()).collect::<Vec<_>>();
+
     let info = vk::DeviceCreateInfo::builder()
         .queue_create_infos(queue_infos)
-        .enabled_layer_names(&layers);
+        .enabled_layer_names(&layers)
+        .enabled_extension_names(&extensions);
 
     return Ok(instance.create_device(*physical_device, &info, None)?);
 
 }
 
 
-struct QueueFamilyIndices {
-    graphics: u32,
-    present: u32
+pub struct QueueFamilyIndices {
+    pub graphics: u32,
+    pub present: u32
 }
 
 impl QueueFamilyIndices {
@@ -60,11 +65,11 @@ impl QueueFamilyIndices {
         let mut graphics: Option<u32> = None;
         let mut present: Option<u32> = None;
         for (i, queueFamilyProperty) in props.iter().enumerate() {
-            if (queueFamilyProperty.queue_flags.contains(vk::QueueFlags::GRAPHICS)) {
+            if queueFamilyProperty.queue_flags.contains(vk::QueueFlags::GRAPHICS) && graphics == None {
                 graphics = Some(i as u32);
                 debug!("\tgraphics queue family index: {}", i);
             }
-            if instance.get_physical_device_surface_support_khr(*physical_device, i as u32, data.surface)? {
+            if instance.get_physical_device_surface_support_khr(*physical_device, i as u32, data.surface)? && present == None {
                 present = Some(i as u32);
                 debug!("\tpresent queue family index: {}", i);
             }
