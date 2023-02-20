@@ -10,6 +10,7 @@ mod app;
 mod instance;
 mod device;
 mod swapchain;
+mod images;
 
 fn main() -> Result<()> {
     pretty_env_logger::init();
