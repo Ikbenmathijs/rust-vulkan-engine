@@ -14,7 +14,8 @@ pub struct AppData {
     pub surface: vk::SurfaceKHR,
     pub swapchain: vk::SwapchainKHR,
     pub swapchain_images: Vec<vk::Image>,
-    pub swapchain_image_format: vk::Format
+    pub swapchain_image_format: vk::Format,
+    pub swapchain_image_views: Vec<vk::ImageView>
 }
 
 
@@ -50,16 +51,27 @@ impl App {
     pub unsafe fn destroy(&mut self) {
         println!("Goodbye!");
 
-        
-
+        for view in &self.data.swapchain_image_views {
+            self.device.destroy_image_view(*view, None);
+        }
+        debug!("Destroyed image views");
         self.device.destroy_swapchain_khr(self.data.swapchain, None);
+        debug!("Destroyed swapchain");
+
 
         self.device.destroy_device(None);
+        debug!("Destroyed device");
+
 
         self.instance.destroy_surface_khr(self.data.surface, None);
+        debug!("Destroyed surface");
+
 
         self.instance.destroy_debug_utils_messenger_ext(self.data.messenger, None);
+        debug!("Destroyed debug messenger");
+
         self.instance.destroy_instance(None);
+        debug!("destroyed instance");
     }
 }
 

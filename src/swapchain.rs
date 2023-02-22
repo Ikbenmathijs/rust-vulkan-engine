@@ -133,6 +133,8 @@ pub unsafe fn create_swapchain_image_views(data: &mut AppData, device: &Device) 
         debug!("Created swapchain image view");
     }
 
+
+    data.swapchain_image_views = image_views;
     info!("Created swapchain image views");
 
     return Ok(());
