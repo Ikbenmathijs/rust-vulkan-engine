@@ -11,6 +11,7 @@ mod instance;
 mod device;
 mod swapchain;
 mod images;
+mod pipeline;
 
 fn main() -> Result<()> {
     pretty_env_logger::init();

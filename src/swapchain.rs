@@ -31,6 +31,8 @@ pub unsafe fn create_swapchain(instance: &Instance, data: &mut AppData, device: 
 
     let extent = get_swapchain_extent(window, support.capabilities);
 
+    data.swapchain_extent = extent;
+
     let present_modes = instance.get_physical_device_surface_present_modes_khr(data.physical_device, data.surface)?;
 
     

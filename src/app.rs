@@ -15,7 +15,8 @@ pub struct AppData {
     pub swapchain: vk::SwapchainKHR,
     pub swapchain_images: Vec<vk::Image>,
     pub swapchain_image_format: vk::Format,
-    pub swapchain_image_views: Vec<vk::ImageView>
+    pub swapchain_image_views: Vec<vk::ImageView>,
+    pub swapchain_extent: vk::Extent2D
 }
 
 
