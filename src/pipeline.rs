@@ -1,5 +1,6 @@
 use vulkanalia::{prelude::v1_0::*};
 use anyhow::{Result, anyhow};
+use log::*;
 
 use crate::app::AppData;
 
@@ -66,6 +67,24 @@ pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()>
         .sample_shading_enable(false)
         .rasterization_samples(vk::SampleCountFlags::_1);
 
+    let attachment = vk::PipelineColorBlendAttachmentState::builder()
+        .blend_enable(false)
+        .color_write_mask(vk::ColorComponentFlags::all());
+
+    let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
+        .attachments(&[attachment])
+        .logic_op_enable(false)
+        .attachments(&[attachment])
+        .blend_constants([0.0, 0.0, 0.0, 0.0]);
+
+
+    let pipeline_layout_info = vk::PipelineLayoutCreateInfo::builder();
+
+    data.pipeline_layout = device.create_pipeline_layout(&pipeline_layout_info, None)?;
+
+
+    
+
 
 
     return Ok(());
@@ -86,6 +105,8 @@ unsafe fn create_shader_module(device: &Device, bytecode: &[u8]) -> Result<vk::S
     let info = vk::ShaderModuleCreateInfo::builder()
         .code(aligned_bytes)
         .code_size(bytecode.len());
+
+    debug!("Shader module created with bytecode size {}", bytecode.len());
 
     return Ok(device.create_shader_module(&info, None)?);    
 }

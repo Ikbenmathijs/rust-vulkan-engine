@@ -2,7 +2,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device}, swapchain::{create_swapchain, create_swapchain_image_views}};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, render_pass::create_render_pass};
 use log::*;
 use vulkanalia::window as vkWindow;
 
@@ -16,7 +16,8 @@ pub struct AppData {
     pub swapchain_images: Vec<vk::Image>,
     pub swapchain_image_format: vk::Format,
     pub swapchain_image_views: Vec<vk::ImageView>,
-    pub swapchain_extent: vk::Extent2D
+    pub swapchain_extent: vk::Extent2D,
+    pub pipeline_layout: vk::PipelineLayout
 }
 
 
@@ -40,6 +41,9 @@ impl App {
         let device = create_logical_device(&instance, &data.physical_device, &data)?;
         create_swapchain(&instance, &mut data, &device, window)?;
         create_swapchain_image_views(&mut data, &device)?;
+
+        create_pipeline(&mut data, &device)?;
+        create_render_pass(&device, &mut data)?;
 
         return Ok(Self {entry, instance, data, device});
     }
