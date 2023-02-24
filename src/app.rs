@@ -67,7 +67,7 @@ impl App {
         self.device.destroy_pipeline_layout(self.data.pipeline_layout, None);
         debug!("Destroyed pipeline layout");
 
-
+ 
         for view in &self.data.swapchain_image_views {
             self.device.destroy_image_view(*view, None);
         }
