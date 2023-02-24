@@ -2,7 +2,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, render_pass::create_render_pass};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, render_pass::create_render_pass, framebuffers::create_framebuffers};
 use log::*;
 use vulkanalia::window as vkWindow;
 
@@ -19,7 +19,8 @@ pub struct AppData {
     pub swapchain_extent: vk::Extent2D,
     pub pipeline_layout: vk::PipelineLayout,
     pub render_pass: vk::RenderPass,
-    pub pipeline: vk::Pipeline
+    pub pipeline: vk::Pipeline,
+    pub framebuffers: Vec<vk::Framebuffer>
 }
 
 
@@ -45,6 +46,7 @@ impl App {
         create_swapchain_image_views(&mut data, &device)?;
 
         create_pipeline(&mut data, &device)?;
+        create_framebuffers(&mut data, &device)?;
 
         return Ok(Self {entry, instance, data, device});
     }
