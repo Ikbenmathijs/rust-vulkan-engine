@@ -17,7 +17,9 @@ pub struct AppData {
     pub swapchain_image_format: vk::Format,
     pub swapchain_image_views: Vec<vk::ImageView>,
     pub swapchain_extent: vk::Extent2D,
-    pub pipeline_layout: vk::PipelineLayout
+    pub pipeline_layout: vk::PipelineLayout,
+    pub render_pass: vk::RenderPass,
+    pub pipeline: vk::Pipeline
 }
 
 
@@ -43,7 +45,6 @@ impl App {
         create_swapchain_image_views(&mut data, &device)?;
 
         create_pipeline(&mut data, &device)?;
-        create_render_pass(&device, &mut data)?;
 
         return Ok(Self {entry, instance, data, device});
     }
@@ -55,6 +56,17 @@ impl App {
 
     pub unsafe fn destroy(&mut self) {
         println!("Goodbye!");
+
+
+        self.device.destroy_pipeline(self.data.pipeline, None);
+        debug!("Destroyed pipeline");
+
+        self.device.destroy_render_pass(self.data.render_pass, None);
+        debug!("Destroyed render pass");
+
+        self.device.destroy_pipeline_layout(self.data.pipeline_layout, None);
+        debug!("Destroyed pipeline layout");
+
 
         for view in &self.data.swapchain_image_views {
             self.device.destroy_image_view(*view, None);

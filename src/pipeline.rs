@@ -2,7 +2,7 @@ use vulkanalia::{prelude::v1_0::*};
 use anyhow::{Result, anyhow};
 use log::*;
 
-use crate::app::AppData;
+use crate::{app::AppData, render_pass::create_render_pass};
 
 
 
@@ -47,10 +47,12 @@ pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()>
         .offset(vk::Offset2D {x: 0, y: 0})
         .extent(data.swapchain_extent);
 
+    let viewports = &[viewport];
+    let scissors = &[scissor];
 
     let viewport_state = vk::PipelineViewportStateCreateInfo::builder()
-        .viewports(&[viewport])
-        .scissors(&[scissor]);
+        .viewports(viewports)
+        .scissors(scissors);
 
 
     let rasterization_state = vk::PipelineRasterizationStateCreateInfo::builder()
@@ -71,10 +73,12 @@ pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()>
         .blend_enable(false)
         .color_write_mask(vk::ColorComponentFlags::all());
 
+
+    let attachments = &[attachment];
+
     let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
-        .attachments(&[attachment])
+        .attachments(attachments)
         .logic_op_enable(false)
-        .attachments(&[attachment])
         .blend_constants([0.0, 0.0, 0.0, 0.0]);
 
 
@@ -83,9 +87,32 @@ pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()>
     data.pipeline_layout = device.create_pipeline_layout(&pipeline_layout_info, None)?;
 
 
-    
+    let render_pass = create_render_pass(device, data)?;
+
+    data.render_pass = render_pass;
+
+    let stages = &[vertex_stage_info, fragment_stage_info];
 
 
+    let pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+        .stages(stages)
+        .vertex_input_state(&vertex_input_stage)
+        .input_assembly_state(&input_assembly_stage)
+        .viewport_state(&viewport_state)
+        .rasterization_state(&rasterization_state)
+        .multisample_state(&multi_sample_state)
+        .color_blend_state(&color_blend_state)
+        .layout(data.pipeline_layout)
+        .render_pass(render_pass)
+        .subpass(0);
+
+    data.pipeline = device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_info], None)?.0;
+
+
+    device.destroy_shader_module(vertex_shader_module, None);
+    device.destroy_shader_module(fragment_shader_module, None);
+
+    info!("Created pipeline!");
 
     return Ok(());
 }

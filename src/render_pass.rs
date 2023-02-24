@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::app::AppData;
 
-pub unsafe fn create_render_pass(device: &Device, data: &mut AppData) -> Result<()> {
+pub unsafe fn create_render_pass(device: &Device, data: &mut AppData) -> Result<vk::RenderPass> {
 
     let color_attachment = vk::AttachmentDescription::builder()
         .format(data.swapchain_image_format)
@@ -22,14 +22,26 @@ pub unsafe fn create_render_pass(device: &Device, data: &mut AppData) -> Result<
         .attachment(0)
         .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
 
-    let color_attachments = &[color_attachment_ref];
+    let color_attachments_refs = &[color_attachment_ref];
 
 
     let subpass = vk::SubpassDescription::builder()
-        .color_attachments(color_attachments)
+        .color_attachments(color_attachments_refs)
         .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS);
 
-    
+    let subpasses = &[subpass];
 
-    return Ok(());
+    let attachments = &[color_attachment];
+
+    
+    let info = vk::RenderPassCreateInfo::builder()
+        .attachments(attachments)
+        .subpasses(subpasses);
+
+
+
+
+    info!("Creating render pass!");
+
+    return Ok(device.create_render_pass(&info, None)?);
 }
