@@ -2,7 +2,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, render_pass::create_render_pass, framebuffers::create_framebuffers};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pool, create_command_buffers}, sync::create_semaphore};
 use log::*;
 use vulkanalia::window as vkWindow;
 
@@ -20,7 +20,13 @@ pub struct AppData {
     pub pipeline_layout: vk::PipelineLayout,
     pub render_pass: vk::RenderPass,
     pub pipeline: vk::Pipeline,
-    pub framebuffers: Vec<vk::Framebuffer>
+    pub framebuffers: Vec<vk::Framebuffer>,
+    pub command_pool: vk::CommandPool,
+    pub command_buffers: Vec<vk::CommandBuffer>,
+    pub image_availible_semaphore: vk::Semaphore,
+    pub render_finished_semaphore: vk::Semaphore,
+    pub graphics_queue: vk::Queue,
+    pub present_queue: vk::Queue
 }
 
 
@@ -47,17 +53,51 @@ impl App {
 
         create_pipeline(&mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
+        create_command_buffers(&device, &mut data)?;
+        
+        let indicies = QueueFamilyIndices::get(&instance, &data.physical_device, &data)?;
+
+        data.command_pool = create_command_pool(&device, indicies.graphics)?;
+
+        data.render_finished_semaphore = create_semaphore(&device)?;
+        data.image_availible_semaphore = create_semaphore(&device)?;
+
 
         return Ok(Self {entry, instance, data, device});
     }
 
     pub unsafe fn render(&mut self, window: &Window) -> Result<()> {
 
+        let image_index = self.device.acquire_next_image_khr(
+            self.data.swapchain, 
+            u64::max_value(), 
+            self.data.image_availible_semaphore, 
+            vk::Fence::null())?.0 as usize;
+        
+        
+        let wait_semaphores = &[self.data.image_availible_semaphore];
+        let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+        let command_buffers = &[self.data.command_buffers[image_index]];
+        let signal_semaphores = &[self.data.render_finished_semaphore];
+
+        let submit_info = vk::SubmitInfo::builder()
+            .wait_semaphores(wait_semaphores)
+            .wait_dst_stage_mask(wait_stages)
+            .command_buffers(command_buffers)
+            .signal_semaphores(signal_semaphores);
+
+        self.device.queue_submit(self.data.graphics_queue, &[submit_info], vk::Fence::null())?;
+
+
+
+
         return Ok(());
     }
 
     pub unsafe fn destroy(&mut self) {
         println!("Goodbye!");
+
+        
 
 
         self.device.destroy_pipeline(self.data.pipeline, None);

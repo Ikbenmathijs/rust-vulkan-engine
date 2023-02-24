@@ -13,7 +13,8 @@ mod swapchain;
 mod images;
 mod pipeline;
 mod render_pass;
-mod framebuffers;
+mod buffers;
+mod sync;
 
 fn main() -> Result<()> {
     pretty_env_logger::init();
