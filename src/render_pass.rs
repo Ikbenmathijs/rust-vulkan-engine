@@ -29,14 +29,29 @@ pub unsafe fn create_render_pass(device: &Device, data: &mut AppData) -> Result<
         .color_attachments(color_attachments_refs)
         .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS);
 
+
+    let dependency = vk::SubpassDependency::builder()
+        .src_subpass(vk::SUBPASS_EXTERNAL)
+        .dst_subpass(0)
+        .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+        .src_access_mask(vk::AccessFlags::empty())
+        .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+        .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE);
+
+
+
+
     let subpasses = &[subpass];
 
     let attachments = &[color_attachment];
 
+    let dependencies = &[dependency];
+
     
     let info = vk::RenderPassCreateInfo::builder()
         .attachments(attachments)
-        .subpasses(subpasses);
+        .subpasses(subpasses)
+        .dependencies(dependencies);
 
 
 

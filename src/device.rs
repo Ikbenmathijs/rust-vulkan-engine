@@ -31,7 +31,8 @@ pub unsafe fn pick_physical_device(instance: &Instance, data: &AppData) -> Resul
 }
 
 
-pub unsafe fn create_logical_device(instance: &Instance, physical_device: &vk::PhysicalDevice, data: &AppData) -> Result<Device> {
+pub unsafe fn create_logical_device(instance: &Instance, data: &mut AppData) -> Result<Device> {
+    let physical_device = &data.physical_device;
     let queue_family_indices = QueueFamilyIndices::get(instance, physical_device, data)?;
 
     let graphics_queue_info =  vk::DeviceQueueCreateInfo::builder()
@@ -48,7 +49,13 @@ pub unsafe fn create_logical_device(instance: &Instance, physical_device: &vk::P
         .enabled_layer_names(&layers)
         .enabled_extension_names(&extensions);
 
-    return Ok(instance.create_device(*physical_device, &info, None)?);
+    let device = instance.create_device(*physical_device, &info, None)?;
+
+
+    data.graphics_queue = device.get_device_queue(queue_family_indices.graphics, 0);
+    data.present_queue = device.get_device_queue(queue_family_indices.present, 0);
+
+    return Ok(device);
 
 }
 

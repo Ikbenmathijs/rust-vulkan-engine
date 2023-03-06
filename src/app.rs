@@ -23,8 +23,8 @@ pub struct AppData {
     pub framebuffers: Vec<vk::Framebuffer>,
     pub command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
-    pub image_availible_semaphore: vk::Semaphore,
-    pub render_finished_semaphore: vk::Semaphore,
+    pub image_available_semaphores: Vec<vk::Semaphore>,
+    pub render_finished_semaphores: Vec<vk::Semaphore>,
     pub graphics_queue: vk::Queue,
     pub present_queue: vk::Queue
 }
@@ -35,7 +35,8 @@ pub struct App {
     entry: Entry,
     instance: Instance,
     data: AppData,
-    device: Device
+    device: Device,
+    frame: usize
 }
 
 
@@ -47,58 +48,97 @@ impl App {
         let instance = create_instance(window, &entry, &mut data)?;
         data.surface = vkWindow::create_surface(&instance, window)?;
         data.physical_device = pick_physical_device(&instance, &data)?;
-        let device = create_logical_device(&instance, &data.physical_device, &data)?;
+        let device = create_logical_device(&instance, &mut data)?;
         create_swapchain(&instance, &mut data, &device, window)?;
         create_swapchain_image_views(&mut data, &device)?;
 
         create_pipeline(&mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
-        create_command_buffers(&device, &mut data)?;
-        
         let indicies = QueueFamilyIndices::get(&instance, &data.physical_device, &data)?;
 
         data.command_pool = create_command_pool(&device, indicies.graphics)?;
 
-        data.render_finished_semaphore = create_semaphore(&device)?;
-        data.image_availible_semaphore = create_semaphore(&device)?;
+        create_command_buffers(&device, &mut data)?;
+        
+
+        for i in 0..data.swapchain_images.len() {
+            data.render_finished_semaphores.push(create_semaphore(&device)?);
+            data.image_available_semaphores.push(create_semaphore(&device)?);
+        }
+        
 
 
-        return Ok(Self {entry, instance, data, device});
+        return Ok(Self {entry, instance, data, device, frame: 0});
     }
 
     pub unsafe fn render(&mut self, window: &Window) -> Result<()> {
 
-        let image_index = self.device.acquire_next_image_khr(
-            self.data.swapchain, 
-            u64::max_value(), 
-            self.data.image_availible_semaphore, 
-            vk::Fence::null())?.0 as usize;
-        
-        
-        let wait_semaphores = &[self.data.image_availible_semaphore];
+       // let in_flight_fence = self.data.in_flight_fences[self.frame];
+
+       /*self.device
+            .wait_for_fences(&[in_flight_fence], true, u64::max_value())?;*/
+
+        let image_index = self
+            .device
+            .acquire_next_image_khr(
+                self.data.swapchain,
+                u64::max_value(),
+                self.data.image_available_semaphores[self.frame],
+                vk::Fence::null(),
+            )?
+            .0 as usize;
+
+        /*let image_in_flight = self.data.images_in_flight[image_index];
+        if !image_in_flight.is_null() {
+            self.device
+                .wait_for_fences(&[image_in_flight], true, u64::max_value())?;
+        }*/
+
+        //self.data.images_in_flight[image_index] = in_flight_fence;
+
+        let wait_semaphores = &[self.data.image_available_semaphores[self.frame]];
         let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let command_buffers = &[self.data.command_buffers[image_index]];
-        let signal_semaphores = &[self.data.render_finished_semaphore];
-
+        let signal_semaphores = &[self.data.render_finished_semaphores[self.frame]];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(wait_semaphores)
             .wait_dst_stage_mask(wait_stages)
             .command_buffers(command_buffers)
             .signal_semaphores(signal_semaphores);
 
-        self.device.queue_submit(self.data.graphics_queue, &[submit_info], vk::Fence::null())?;
+        //self.device.reset_fences(&[in_flight_fence])?;
 
+        self.device
+            .queue_submit(self.data.graphics_queue, &[submit_info], vk::Fence::null())?;
 
+        let swapchains = &[self.data.swapchain];
+        let image_indices = &[image_index as u32];
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(signal_semaphores)
+            .swapchains(swapchains)
+            .image_indices(image_indices);
 
+        self.device.queue_present_khr(self.data.present_queue, &present_info)?;
+        self.device.queue_wait_idle(self.data.present_queue)?;
 
-        return Ok(());
+        self.frame = (self.frame + 1) % 2;
+
+        Ok(())
     }
 
     pub unsafe fn destroy(&mut self) {
         println!("Goodbye!");
 
         
+        self.data.image_available_semaphores.iter().for_each(|s| self.device.destroy_semaphore(*s, None));
+        self.data.render_finished_semaphores.iter().for_each(|s| self.device.destroy_semaphore(*s, None));
 
+        self.data.framebuffers.iter().for_each(|f| self.device.destroy_framebuffer(*f, None));
+
+        self.data.command_buffers.iter().for_each(|b| self.device.free_command_buffers(
+            self.data.command_pool, &[*b]));
+        
+        self.device.destroy_command_pool(self.data.command_pool, None);
 
         self.device.destroy_pipeline(self.data.pipeline, None);
         debug!("Destroyed pipeline");

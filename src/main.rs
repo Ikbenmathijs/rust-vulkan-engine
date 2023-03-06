@@ -35,7 +35,7 @@ fn main() -> Result<()> {
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 destroying = true;
                 control_flow.set_exit();
-                unsafe {println!("destroy called"); app.destroy();};
+                unsafe {app.destroy();};
             },
 
             _ => {}
