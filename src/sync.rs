@@ -15,8 +15,11 @@ pub unsafe fn create_semaphore(device: &Device) -> Result<vk::Semaphore> {
 }
 
 
-pub unsafe fn create_fence(device: &Device) -> Result<vk::Fence> {
-    let info = vk::FenceCreateInfo::builder();
+pub unsafe fn create_fence(device: &Device, signaled: bool) -> Result<vk::Fence> {
+    let flags = if signaled { vk::FenceCreateFlags::SIGNALED } else { vk::FenceCreateFlags::empty() };
+
+    let info = vk::FenceCreateInfo::builder().flags(flags);
+
 
     return Ok(device.create_fence(&info, None)?);
 }

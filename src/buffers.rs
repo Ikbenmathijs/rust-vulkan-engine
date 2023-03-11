@@ -20,6 +20,8 @@ pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result
         device.create_framebuffer(&framebuffer_info, None)
     }).collect::<Result<Vec<_>, _>>()?;
 
+    debug!("Created {} framebuffers", data.framebuffers.len());
+
     return Ok(());
 } 
 
@@ -28,6 +30,8 @@ pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result
 pub unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> Result<CommandPool> {
     let command_pool_info = vk::CommandPoolCreateInfo::builder()
         .queue_family_index(queue_family_index);
+
+    debug!("Creating command pool!");
 
     return Ok(device.create_command_pool(&command_pool_info, None)?);
 }
@@ -73,6 +77,7 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
         device.cmd_end_render_pass(*command_buffer);
 
         device.end_command_buffer(*command_buffer)?;
+        debug!("Created command buffer with index: {}", i);
 
     }
 

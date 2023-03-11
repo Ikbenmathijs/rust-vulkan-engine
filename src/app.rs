@@ -2,7 +2,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pool, create_command_buffers}, sync::create_semaphore};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pool, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass};
 use log::*;
 use vulkanalia::window as vkWindow;
 
@@ -26,7 +26,9 @@ pub struct AppData {
     pub image_available_semaphores: Vec<vk::Semaphore>,
     pub render_finished_semaphores: Vec<vk::Semaphore>,
     pub graphics_queue: vk::Queue,
-    pub present_queue: vk::Queue
+    pub present_queue: vk::Queue,
+    pub in_flight_fences: Vec<vk::Fence>,
+    pub images_in_flight: Vec<vk::Fence>
 }
 
 
@@ -54,7 +56,7 @@ impl App {
 
         create_pipeline(&mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
-        let indicies = QueueFamilyIndices::get(&instance, &data.physical_device, &data)?;
+        let indicies = QueueFamilyIndices::get(&instance, &data, None)?;
 
         data.command_pool = create_command_pool(&device, indicies.graphics)?;
 
@@ -64,19 +66,27 @@ impl App {
         for i in 0..data.swapchain_images.len() {
             data.render_finished_semaphores.push(create_semaphore(&device)?);
             data.image_available_semaphores.push(create_semaphore(&device)?);
+            data.in_flight_fences.push(create_fence(&device, true)?);
         }
         
-
+        data.images_in_flight = data.swapchain_images.iter().map(|_| vk::Fence::null()).collect();
 
         return Ok(Self {entry, instance, data, device, frame: 0});
     }
 
     pub unsafe fn render(&mut self, window: &Window) -> Result<()> {
 
-       // let in_flight_fence = self.data.in_flight_fences[self.frame];
 
-       /*self.device
-            .wait_for_fences(&[in_flight_fence], true, u64::max_value())?;*/
+
+        let in_flight_fence = self.data.in_flight_fences[self.frame];
+
+
+
+        self.device
+            .wait_for_fences(&[in_flight_fence], true, u64::max_value())?;
+
+
+
 
         let image_index = self
             .device
@@ -88,13 +98,15 @@ impl App {
             )?
             .0 as usize;
 
-        /*let image_in_flight = self.data.images_in_flight[image_index];
+        
+
+        let image_in_flight = self.data.images_in_flight[image_index];
         if !image_in_flight.is_null() {
             self.device
                 .wait_for_fences(&[image_in_flight], true, u64::max_value())?;
-        }*/
+        }
 
-        //self.data.images_in_flight[image_index] = in_flight_fence;
+        self.data.images_in_flight[image_index] = in_flight_fence;
 
         let wait_semaphores = &[self.data.image_available_semaphores[self.frame]];
         let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -106,10 +118,10 @@ impl App {
             .command_buffers(command_buffers)
             .signal_semaphores(signal_semaphores);
 
-        //self.device.reset_fences(&[in_flight_fence])?;
+        self.device.reset_fences(&[in_flight_fence])?;
 
         self.device
-            .queue_submit(self.data.graphics_queue, &[submit_info], vk::Fence::null())?;
+            .queue_submit(self.data.graphics_queue, &[submit_info], in_flight_fence)?;
 
         let swapchains = &[self.data.swapchain];
         let image_indices = &[image_index as u32];
@@ -118,36 +130,52 @@ impl App {
             .swapchains(swapchains)
             .image_indices(image_indices);
 
-        self.device.queue_present_khr(self.data.present_queue, &present_info)?;
-        self.device.queue_wait_idle(self.data.present_queue)?;
+        let result = self.device.queue_present_khr(self.data.present_queue, &present_info);
+
+
+        let changed = result == Ok(vk::SuccessCode::SUBOPTIMAL_KHR)
+    || result == Err(vk::ErrorCode::OUT_OF_DATE_KHR);
+
+
+        if changed {
+            self.recreate_swapchain(window)?;
+        } else if let Err(e) = result {
+            return Err(anyhow!(e));
+        }
+
+
 
         self.frame = (self.frame + 1) % 2;
 
         Ok(())
     }
 
-    pub unsafe fn destroy(&mut self) {
-        println!("Goodbye!");
 
-        
-        self.data.image_available_semaphores.iter().for_each(|s| self.device.destroy_semaphore(*s, None));
-        self.data.render_finished_semaphores.iter().for_each(|s| self.device.destroy_semaphore(*s, None));
-
+    pub unsafe fn destroy_swapchain(&mut self) {
         self.data.framebuffers.iter().for_each(|f| self.device.destroy_framebuffer(*f, None));
+        debug!("Destroyed frame buffers");
+
 
         self.data.command_buffers.iter().for_each(|b| self.device.free_command_buffers(
             self.data.command_pool, &[*b]));
+        debug!("Destroyed command buffers");
         
-        self.device.destroy_command_pool(self.data.command_pool, None);
 
-        self.device.destroy_pipeline(self.data.pipeline, None);
-        debug!("Destroyed pipeline");
+        self.device.destroy_command_pool(self.data.command_pool, None);
+        debug!("Destroyed command pool");
 
         self.device.destroy_render_pass(self.data.render_pass, None);
         debug!("Destroyed render pass");
 
+
+        self.device.destroy_pipeline(self.data.pipeline, None);
+        debug!("Destroyed pipeline");
+
+
+
         self.device.destroy_pipeline_layout(self.data.pipeline_layout, None);
         debug!("Destroyed pipeline layout");
+
 
  
         for view in &self.data.swapchain_image_views {
@@ -156,6 +184,49 @@ impl App {
         debug!("Destroyed image views");
         self.device.destroy_swapchain_khr(self.data.swapchain, None);
         debug!("Destroyed swapchain");
+    }
+
+    pub unsafe fn recreate_swapchain(&mut self, window: &Window) -> Result<()> {
+        self.device.device_wait_idle()?;
+
+        self.destroy_swapchain();
+
+        create_swapchain(&self.instance, &mut self.data, &self.device, window)?;
+        create_swapchain_image_views(&mut self.data, &self.device)?;
+
+        create_pipeline(&mut self.data, &self.device)?;
+
+        let indicies = QueueFamilyIndices::get(&self.instance, &self.data, None)?;
+
+
+        create_framebuffers(&mut self.data, &self.device)?;
+        self.data.command_pool = create_command_pool(&self.device, indicies.graphics)?;
+        create_command_buffers(&self.device, &mut self.data)?;
+        
+
+
+
+
+
+        
+        return Ok(());
+    }
+
+    pub unsafe fn destroy(&mut self) {
+        println!("Goodbye!");
+        self.device.device_wait_idle().unwrap();
+
+        
+        self.data.image_available_semaphores.iter().for_each(|s| self.device.destroy_semaphore(*s, None));
+        self.data.render_finished_semaphores.iter().for_each(|s| self.device.destroy_semaphore(*s, None));
+        self.data.in_flight_fences.iter().for_each(|f| self.device.destroy_fence(*f, None));
+        debug!("Destroyed fences & semaphores");
+
+
+
+        
+        self.destroy_swapchain();
+        
 
 
         self.device.destroy_device(None);

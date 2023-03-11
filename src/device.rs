@@ -15,7 +15,7 @@ pub unsafe fn pick_physical_device(instance: &Instance, data: &AppData) -> Resul
     for physical_device in devices {
         let props = instance.get_physical_device_properties(physical_device);
         debug!("Device found: {}", props.device_name);
-        if let Err(_) = QueueFamilyIndices::get(instance, &physical_device, data) {
+        if let Err(_) = QueueFamilyIndices::get(instance, data, Some(&physical_device)) {
             warn!("Skipping {}: it doesn't support graphics queue family", props.device_name);
             continue;
         }
@@ -33,7 +33,7 @@ pub unsafe fn pick_physical_device(instance: &Instance, data: &AppData) -> Resul
 
 pub unsafe fn create_logical_device(instance: &Instance, data: &mut AppData) -> Result<Device> {
     let physical_device = &data.physical_device;
-    let queue_family_indices = QueueFamilyIndices::get(instance, physical_device, data)?;
+    let queue_family_indices = QueueFamilyIndices::get(instance, data, Some(physical_device))?;
 
     let graphics_queue_info =  vk::DeviceQueueCreateInfo::builder()
         .queue_family_index(queue_family_indices.graphics)
@@ -66,7 +66,10 @@ pub struct QueueFamilyIndices {
 }
 
 impl QueueFamilyIndices {
-    pub unsafe fn get(instance: &Instance, physical_device: &vk::PhysicalDevice, data: &AppData) -> Result<Self> {
+    pub unsafe fn get(instance: &Instance, data: &AppData, physical_device: Option<&PhysicalDevice>) -> Result<Self> {
+
+        let physical_device = if let Some(device) = physical_device {device} else {&data.physical_device};
+
         let props = instance.get_physical_device_queue_family_properties(*physical_device);
 
         let mut graphics: Option<u32> = None;

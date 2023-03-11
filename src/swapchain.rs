@@ -9,7 +9,7 @@ use crate::device::QueueFamilyIndices;
 
 pub unsafe fn create_swapchain(instance: &Instance, data: &mut AppData, device: &Device, window: &Window) -> Result<()> {
 
-    let indices = QueueFamilyIndices::get(instance, &data.physical_device, data)?;
+    let indices = QueueFamilyIndices::get(instance, data, None)?;
     
     let support = SwapchainSupport::get(instance, data, &data.physical_device)?;
     let image_count = support.capabilities.min_image_count + 1;

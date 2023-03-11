@@ -54,9 +54,9 @@ pub unsafe fn create_render_pass(device: &Device, data: &mut AppData) -> Result<
         .dependencies(dependencies);
 
 
+    let render_pass = device.create_render_pass(&info, None)?;
 
+    info!("Created render pass: {:?}", render_pass);
 
-    info!("Creating render pass!");
-
-    return Ok(device.create_render_pass(&info, None)?);
+    return Ok(render_pass);
 }
