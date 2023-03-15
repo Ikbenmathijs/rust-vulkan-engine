@@ -15,6 +15,7 @@ mod pipeline;
 mod render_pass;
 mod buffers;
 mod sync;
+mod vertex;
 
 fn main() -> Result<()> {
     pretty_env_logger::init();
