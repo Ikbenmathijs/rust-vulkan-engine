@@ -28,7 +28,9 @@ pub struct AppData {
     pub graphics_queue: vk::Queue,
     pub present_queue: vk::Queue,
     pub in_flight_fences: Vec<vk::Fence>,
-    pub images_in_flight: Vec<vk::Fence>
+    pub images_in_flight: Vec<vk::Fence>,
+    pub vertex_buffer: vk::Buffer,
+    pub vertex_buffer_memory: vk::DeviceMemory
 }
 
 
