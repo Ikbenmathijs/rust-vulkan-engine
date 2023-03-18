@@ -58,7 +58,7 @@ impl Vertex {
 pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &mut AppData) -> Result<()> {
 
     let (buffer, buffer_memory) = create_buffer(
-        size_of::<Vertex>() * VERTICES.len(), 
+        (size_of::<Vertex>() * VERTICES.len()) as u64, 
         vk::BufferUsageFlags::VERTEX_BUFFER, 
         device, 
         instance, 

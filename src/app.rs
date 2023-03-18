@@ -2,7 +2,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pool, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pool, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::create_vertex_buffer};
 use log::*;
 use vulkanalia::window as vkWindow;
 
@@ -56,6 +56,8 @@ impl App {
         create_swapchain(&instance, &mut data, &device, window)?;
         create_swapchain_image_views(&mut data, &device)?;
 
+        create_vertex_buffer(&instance, &device, &mut data)?;
+
         create_pipeline(&mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
         let indicies = QueueFamilyIndices::get(&instance, &data, None)?;
@@ -72,6 +74,8 @@ impl App {
         }
         
         data.images_in_flight = data.swapchain_images.iter().map(|_| vk::Fence::null()).collect();
+
+
 
         return Ok(Self {entry, instance, data, device, frame: 0});
     }
@@ -229,6 +233,10 @@ impl App {
         
         self.destroy_swapchain();
         
+
+        self.device.free_memory(self.data.vertex_buffer_memory, None);
+
+        self.device.destroy_buffer(self.data.vertex_buffer, None);
 
 
         self.device.destroy_device(None);

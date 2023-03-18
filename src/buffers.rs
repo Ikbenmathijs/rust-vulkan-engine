@@ -93,7 +93,7 @@ pub unsafe fn create_buffer<T>(size: vk::DeviceSize, usage: vk::BufferUsageFlags
     let buffer_info = vk::BufferCreateInfo::builder()
         .size(size)
         .usage(usage)
-        .sharing_mode(vk::SharingMode::CONCURRENT);
+        .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
     let buffer = device.create_buffer(&buffer_info, None)?;
 
