@@ -22,6 +22,7 @@ pub struct AppData {
     pub pipeline: vk::Pipeline,
     pub framebuffers: Vec<vk::Framebuffer>,
     pub command_pool: vk::CommandPool,
+    pub transient_command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
     pub image_available_semaphores: Vec<vk::Semaphore>,
     pub render_finished_semaphores: Vec<vk::Semaphore>,
@@ -31,7 +32,8 @@ pub struct AppData {
     pub images_in_flight: Vec<vk::Fence>,
     pub vertex_buffer: vk::Buffer,
     pub vertex_buffer_memory: vk::DeviceMemory,
-    pub transient_command_pool: vk::CommandPool
+    
+
 }
 
 
