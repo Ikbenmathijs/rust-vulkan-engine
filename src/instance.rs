@@ -21,7 +21,7 @@ pub unsafe fn create_instance(window: &Window, entry: &Entry, data: &mut AppData
 
     let app_info = vk::ApplicationInfo::builder()
         .application_version(0)
-        .api_version(vk::version_major(1) | vk::version_minor(0)| vk::version_patch(0));
+        .api_version(vk::make_version(1, 0, 0));
 
 
     

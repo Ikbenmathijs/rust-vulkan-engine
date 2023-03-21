@@ -44,8 +44,7 @@ pub unsafe fn create_logical_device(instance: &Instance, data: &mut AppData) -> 
 
     let extensions = DEVICE_EXTENSIONS.iter().map(|n| n.as_ptr()).collect::<Vec<_>>();
 
-   let mut features = vk::PhysicalDeviceFeatures::builder().build();
-   let mut features2 = vk::PhysicalDeviceFeatures2::builder().build();
+
 
 
 

@@ -132,6 +132,7 @@ unsafe fn get_memory_type_index(
         if memtype.property_flags.contains(properties) && (requirements.memory_type_bits & (1 << i) != 0) {
             index = Some(i as u32);
             debug!("\tFound memory type index: {}", i);
+            break;
         }
     }
 
