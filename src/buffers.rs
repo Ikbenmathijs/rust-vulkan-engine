@@ -157,8 +157,45 @@ pub unsafe fn fill_buffer<T>(
 }
 
 
-unsafe fn copy_buffer() {
+pub unsafe fn copy_buffer(
+    device: &Device,
+    data: &AppData,
+    src: vk::Buffer,
+    dst: vk::Buffer,
+    size: u64
+) -> Result<()> {
+    debug!("Copying buffer");
+    let allocate_info = vk::CommandBufferAllocateInfo::builder()
+        .command_pool(data.transient_command_pool)
+        .level(vk::CommandBufferLevel::PRIMARY)
+        .command_buffer_count(1);
 
+
+    let command_buffer = device.allocate_command_buffers(&allocate_info)?[0];
+
+    let begin_info = vk::CommandBufferBeginInfo::builder()
+        .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+    device.begin_command_buffer(command_buffer, &begin_info)?;
+
+    let region = vk::BufferCopy::builder().size(size);
+
+    device.cmd_copy_buffer(command_buffer, src, dst, &[region]);
+
+    device.end_command_buffer(command_buffer)?;
+
+    let command_buffers = &[command_buffer];
+
+    let submit_info = vk::SubmitInfo::builder()
+        .command_buffers(command_buffers);
+
+    device.queue_submit(data.graphics_queue, &[submit_info], vk::Fence::null())?;
+    device.queue_wait_idle(data.graphics_queue)?;
+    
+    device.free_command_buffers(data.transient_command_pool, command_buffers);
+
+
+    Ok(())
 }
 
 

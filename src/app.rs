@@ -57,13 +57,15 @@ impl App {
         create_swapchain(&instance, &mut data, &device, window)?;
         create_swapchain_image_views(&mut data, &device)?;
 
+        create_command_pools(&device, &instance, &mut data)?;
+
+
         create_vertex_buffer(&instance, &device, &mut data)?;
 
         create_pipeline(&mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
         let indicies = QueueFamilyIndices::get(&instance, &data, None)?;
 
-        create_command_pools(&device, &instance, &mut data)?;
 
         create_command_buffers(&device, &mut data)?;
         

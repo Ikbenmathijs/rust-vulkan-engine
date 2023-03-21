@@ -5,7 +5,7 @@ use std::mem::size_of;
 use anyhow::Result;
 use log::*;
 
-use crate::{app::AppData, buffers::{create_buffer, fill_buffer}};
+use crate::{app::AppData, buffers::{create_buffer, fill_buffer, copy_buffer}};
 
 
 
@@ -63,7 +63,7 @@ pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         size, 
-        vk::BufferUsageFlags::VERTEX_BUFFER, 
+        vk::BufferUsageFlags::TRANSFER_SRC, 
         device, 
         instance, 
         data)?;
@@ -85,14 +85,22 @@ pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &
         device, 
         instance, 
         data)?;
-
-
     
+    device.bind_buffer_memory(buffer, buffer_memory, 0)?;
+
+
+
+    copy_buffer(device, data, staging_buffer, buffer, size)?;
+
+
+
+    device.destroy_buffer(staging_buffer, None);
+    device.free_memory(staging_buffer_memory, None);
+
 
 
     data.vertex_buffer = buffer;
     data.vertex_buffer_memory = buffer_memory;
-
 
 
 
