@@ -63,7 +63,7 @@ impl App {
         create_framebuffers(&mut data, &device)?;
         let indicies = QueueFamilyIndices::get(&instance, &data, None)?;
 
-        data.command_pool = create_command_pools(&device, indicies.graphics)?;
+        create_command_pools(&device, &instance, &mut data)?;
 
         create_command_buffers(&device, &mut data)?;
         
@@ -203,11 +203,9 @@ impl App {
 
         create_pipeline(&mut self.data, &self.device)?;
 
-        let indicies = QueueFamilyIndices::get(&self.instance, &self.data, None)?;
-
 
         create_framebuffers(&mut self.data, &self.device)?;
-        self.data.command_pool = create_command_pools(&self.device, indicies.graphics)?;
+        create_command_pools(&self.device, &self.instance, &mut self.data)?;
         create_command_buffers(&self.device, &mut self.data)?;
         
 

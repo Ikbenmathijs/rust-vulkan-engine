@@ -30,18 +30,21 @@ pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result
 
 
 
-pub unsafe fn create_command_pools(device: &Device, instance: &Instance, data: &AppData) -> Result<CommandPool> {
+pub unsafe fn create_command_pools(device: &Device, instance: &Instance, data: &mut AppData) -> Result<()> {
     let indicies = QueueFamilyIndices::get(instance, data, Some(&data.physical_device))?;
 
     let command_pool_info = vk::CommandPoolCreateInfo::builder()
-        .queue_family_index(queue_family_index);
+        .queue_family_index(indicies.graphics);
 
     let transient_command_pool_info = vk::CommandPoolCreateInfo::builder()
-        .queue_family_index()
+        .queue_family_index(indicies.graphics);
 
-    debug!("Creating command pools!");
+    data.command_pool = device.create_command_pool(&command_pool_info, None)?;
+    data.transient_command_pool = device.create_command_pool(&transient_command_pool_info, None)?;
 
-    return Ok(device.create_command_pool(&command_pool_info, None)?);
+    debug!("Created command pools!");
+
+    return Ok(());
 }
 
 
