@@ -3,25 +3,26 @@ use vulkanalia::prelude::v1_0::*;
 use nalgebra_glm::{vec3, Vec3, Vec2, vec2};
 use std::mem::size_of;
 use anyhow::Result;
+use log::*;
 
-use crate::{app::AppData, buffers::create_buffer};
+use crate::{app::AppData, buffers::{create_buffer, fill_buffer}};
 
 
 
 lazy_static!{
-    static ref VERTICES: Vec<Vertex> = vec![
+    pub static ref VERTICES: Vec<Vertex> = vec![
         Vertex::new(vec2(0.0, -0.5), vec3(1.0, 0.0, 0.0)),
         Vertex::new(vec2(0.5, 0.5), vec3(0.0, 1.0, 0.0)),
-        Vertex::new(vec2(-0.5, 0.0), vec3(0.0, 0.0, 1.0))
+        Vertex::new(vec2(-0.5, 0.5), vec3(0.0, 0.0, 1.0))
     ];
 }
 
 
 
 #[repr(C)]
-struct Vertex {
-    pos: Vec2,
-    color: Vec3
+pub struct Vertex {
+    pub pos: Vec2,
+    pub color: Vec3
 }
 
 
@@ -57,17 +58,46 @@ impl Vertex {
 
 pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &mut AppData) -> Result<()> {
 
-    let (buffer, buffer_memory) = create_buffer(
-        (size_of::<Vertex>() * VERTICES.len()) as u64, 
+    let size = (size_of::<Vertex>() * VERTICES.len()) as u64;
+
+
+    let (staging_buffer, staging_buffer_memory) = create_buffer(
+        size, 
         vk::BufferUsageFlags::VERTEX_BUFFER, 
         device, 
         instance, 
-        data, 
+        data)?;
+    
+
+    fill_buffer(
+        &staging_buffer, 
+        &staging_buffer_memory, 
+        &size, 
         VERTICES.as_ptr(), 
-        VERTICES.len())?;
+        VERTICES.len(), 
+        device)?;
+    
+
+
+    let (buffer, buffer_memory) = create_buffer(
+        size, 
+        vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER, 
+        device, 
+        instance, 
+        data)?;
+
+
+    
+
 
     data.vertex_buffer = buffer;
     data.vertex_buffer_memory = buffer_memory;
+
+
+
+
+
+    info!("Created vertex buffer!");
 
     return Ok(());
 
