@@ -1,6 +1,7 @@
 use vulkanalia::{prelude::v1_0::*};
 use anyhow::{Result, anyhow};
 use log::*;
+use crate::vertex::Vertex;
 
 use crate::{app::AppData, render_pass::create_render_pass};
 
@@ -9,8 +10,12 @@ use crate::{app::AppData, render_pass::create_render_pass};
 pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()> {
 
 
+    let binding_descriptions = [Vertex::binding_description()];
+    let attribute_descriptions = Vertex::attribute_description();
 
-    let vertex_input_stage = vk::PipelineVertexInputStateCreateInfo::builder();
+    let vertex_input_stage = vk::PipelineVertexInputStateCreateInfo::builder()
+        .vertex_binding_descriptions(&binding_descriptions)
+        .vertex_attribute_descriptions(&attribute_descriptions);
 
     let input_assembly_stage =  vk::PipelineInputAssemblyStateCreateInfo::builder()
         .topology(vk::PrimitiveTopology::TRIANGLE_LIST)

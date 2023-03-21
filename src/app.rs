@@ -2,7 +2,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pool, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::create_vertex_buffer};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::create_vertex_buffer};
 use log::*;
 use vulkanalia::window as vkWindow;
 
@@ -30,7 +30,8 @@ pub struct AppData {
     pub in_flight_fences: Vec<vk::Fence>,
     pub images_in_flight: Vec<vk::Fence>,
     pub vertex_buffer: vk::Buffer,
-    pub vertex_buffer_memory: vk::DeviceMemory
+    pub vertex_buffer_memory: vk::DeviceMemory,
+    pub transient_command_pool: vk::CommandPool
 }
 
 
@@ -62,7 +63,7 @@ impl App {
         create_framebuffers(&mut data, &device)?;
         let indicies = QueueFamilyIndices::get(&instance, &data, None)?;
 
-        data.command_pool = create_command_pool(&device, indicies.graphics)?;
+        data.command_pool = create_command_pools(&device, indicies.graphics)?;
 
         create_command_buffers(&device, &mut data)?;
         
@@ -206,7 +207,7 @@ impl App {
 
 
         create_framebuffers(&mut self.data, &self.device)?;
-        self.data.command_pool = create_command_pool(&self.device, indicies.graphics)?;
+        self.data.command_pool = create_command_pools(&self.device, indicies.graphics)?;
         create_command_buffers(&self.device, &mut self.data)?;
         
 

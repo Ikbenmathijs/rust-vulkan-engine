@@ -4,6 +4,8 @@ use anyhow::{Result, anyhow};
 use std::ptr::copy_nonoverlapping as memcpy;
 
 use crate::app::AppData;
+use crate::device::QueueFamilyIndices;
+use crate::vertex::VERTICES;
 
 
 pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result<()> {
@@ -28,11 +30,16 @@ pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result
 
 
 
-pub unsafe fn create_command_pool(device: &Device, queue_family_index: u32) -> Result<CommandPool> {
+pub unsafe fn create_command_pools(device: &Device, instance: &Instance, data: &AppData) -> Result<CommandPool> {
+    let indicies = QueueFamilyIndices::get(instance, data, Some(&data.physical_device))?;
+
     let command_pool_info = vk::CommandPoolCreateInfo::builder()
         .queue_family_index(queue_family_index);
 
-    debug!("Creating command pool!");
+    let transient_command_pool_info = vk::CommandPoolCreateInfo::builder()
+        .queue_family_index()
+
+    debug!("Creating command pools!");
 
     return Ok(device.create_command_pool(&command_pool_info, None)?);
 }
@@ -74,7 +81,11 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
 
         device.cmd_begin_render_pass(*command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
         device.cmd_bind_pipeline(*command_buffer, vk::PipelineBindPoint::GRAPHICS, data.pipeline);
-        device.cmd_draw(*command_buffer, 3, 1, 0, 0);
+
+        device.cmd_bind_vertex_buffers(*command_buffer, 0, &[data.vertex_buffer], &[0]);
+        
+
+        device.cmd_draw(*command_buffer, VERTICES.len() as u32, 1, 0, 0);
         device.cmd_end_render_pass(*command_buffer);
 
         device.end_command_buffer(*command_buffer)?;
@@ -89,7 +100,7 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
 
 
 
-pub unsafe fn create_buffer<T>(size: vk::DeviceSize, usage: vk::BufferUsageFlags, device: &Device, instance: &Instance, data: &AppData, cpy_src: *const T, cpy_count: usize) -> Result<(vk::Buffer, vk::DeviceMemory)> {
+pub unsafe fn create_buffer(size: vk::DeviceSize, usage: vk::BufferUsageFlags, device: &Device, instance: &Instance, data: &AppData) -> Result<(vk::Buffer, vk::DeviceMemory)> {
     let buffer_info = vk::BufferCreateInfo::builder()
         .size(size)
         .usage(usage)
@@ -110,14 +121,45 @@ pub unsafe fn create_buffer<T>(size: vk::DeviceSize, usage: vk::BufferUsageFlags
     let device_memory = device.allocate_memory(&allocate_info, None)?;
 
 
-    let memory_ptr = device.map_memory(device_memory, 0, buffer_info.size, vk::MemoryMapFlags::empty())?;
+    
 
-    memcpy(cpy_src, memory_ptr.cast(), cpy_count);
-
-    device.unmap_memory(device_memory);
+    debug!("Created buffer");
 
     Ok((buffer, device_memory))
 }
+
+
+
+
+pub unsafe fn fill_buffer<T>(
+    buffer: &vk::Buffer, 
+    device_memory: &vk::DeviceMemory,
+    size: &vk::DeviceSize,
+    cpy_src: *const T,
+    cpy_count: usize,
+    device: &Device
+) -> Result<()> {
+
+    let memory_ptr = device.map_memory(*device_memory, 0, *size, vk::MemoryMapFlags::empty())?;
+
+    memcpy(cpy_src, memory_ptr.cast(), cpy_count);
+
+    device.unmap_memory(*device_memory);
+
+    device.bind_buffer_memory(*buffer, *device_memory, 0)?;
+
+    debug!("Filled buffer!");
+    
+    return Ok(());
+}
+
+
+unsafe fn copy_buffer() {
+
+}
+
+
+
 
 
 unsafe fn get_memory_type_index(
