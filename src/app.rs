@@ -2,9 +2,10 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::create_vertex_buffer};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{create_descriptor_set_layout, create_uniform_buffers}};
 use log::*;
 use vulkanalia::window as vkWindow;
+use std::time::Instant;
 
 
 #[derive(Clone, Debug, Default)]
@@ -18,6 +19,7 @@ pub struct AppData {
     pub swapchain_image_views: Vec<vk::ImageView>,
     pub swapchain_extent: vk::Extent2D,
     pub pipeline_layout: vk::PipelineLayout,
+    pub descriptor_set_layout: vk::DescriptorSetLayout,
     pub render_pass: vk::RenderPass,
     pub pipeline: vk::Pipeline,
     pub framebuffers: Vec<vk::Framebuffer>,
@@ -32,8 +34,10 @@ pub struct AppData {
     pub images_in_flight: Vec<vk::Fence>,
     pub vertex_buffer: vk::Buffer,
     pub vertex_buffer_memory: vk::DeviceMemory,
-    
-
+    pub index_buffer: vk::Buffer,
+    pub index_buffer_memory: vk::DeviceMemory,
+    pub uniform_buffers: Vec<vk::Buffer>,
+    pub uniform_buffer_memory: Vec<vk::DeviceMemory>
 }
 
 
@@ -43,7 +47,8 @@ pub struct App {
     instance: Instance,
     data: AppData,
     device: Device,
-    frame: usize
+    frame: usize,
+    start: Instant
 }
 
 
@@ -63,16 +68,19 @@ impl App {
 
 
         create_vertex_buffer(&instance, &device, &mut data)?;
+        create_index_buffer(&instance, &device, &mut data)?;
+
+        create_descriptor_set_layout(&device, &mut data)?;
+        create_uniform_buffers(&instance, &device, &mut data)?;
 
         create_pipeline(&mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
-        let indicies = QueueFamilyIndices::get(&instance, &data, None)?;
 
 
         create_command_buffers(&device, &mut data)?;
         
 
-        for i in 0..data.swapchain_images.len() {
+        for _ in 0..data.swapchain_images.len() {
             data.render_finished_semaphores.push(create_semaphore(&device)?);
             data.image_available_semaphores.push(create_semaphore(&device)?);
             data.in_flight_fences.push(create_fence(&device, true)?);
@@ -82,7 +90,7 @@ impl App {
 
 
 
-        return Ok(Self {entry, instance, data, device, frame: 0});
+        return Ok(Self {entry, instance, data, device, frame: 0, start: Instant::now()});
     }
 
     pub unsafe fn render(&mut self, window: &Window) -> Result<()> {
@@ -118,6 +126,9 @@ impl App {
         }
 
         self.data.images_in_flight[image_index] = in_flight_fence;
+
+
+        self.update_uniform_buffers(image_index);
 
         let wait_semaphores = &[self.data.image_available_semaphores[self.frame]];
         let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -162,6 +173,18 @@ impl App {
     }
 
 
+
+    pub unsafe fn update_uniform_buffers(&self, index: usize) {
+
+        let time_elapsed = self.start.elapsed().as_secs_f32();
+
+
+        let model = 
+
+
+
+    }
+
     pub unsafe fn destroy_swapchain(&mut self) {
         self.data.framebuffers.iter().for_each(|f| self.device.destroy_framebuffer(*f, None));
         debug!("Destroyed frame buffers");
@@ -171,12 +194,18 @@ impl App {
             self.data.command_pool, &[*b]));
         debug!("Destroyed command buffers");
         
-
+        
         self.device.destroy_command_pool(self.data.command_pool, None);
-        debug!("Destroyed command pool");
+        self.device.destroy_command_pool(self.data.transient_command_pool, None);
+        debug!("Destroyed command pools");
 
         self.device.destroy_render_pass(self.data.render_pass, None);
         debug!("Destroyed render pass");
+
+
+        self.data.uniform_buffers.iter().for_each(|b| self.device.destroy_buffer(*b, None));
+        self.data.uniform_buffer_memory.iter().for_each(|m| self.device.free_memory(*m, None));
+
 
 
         self.device.destroy_pipeline(self.data.pipeline, None);
@@ -204,6 +233,8 @@ impl App {
 
         create_swapchain(&self.instance, &mut self.data, &self.device, window)?;
         create_swapchain_image_views(&mut self.data, &self.device)?;
+
+        create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
 
         create_pipeline(&mut self.data, &self.device)?;
 
@@ -237,9 +268,11 @@ impl App {
         self.destroy_swapchain();
         
 
-        self.device.free_memory(self.data.vertex_buffer_memory, None);
-
         self.device.destroy_buffer(self.data.vertex_buffer, None);
+        self.device.free_memory(self.data.vertex_buffer_memory, None);
+        self.device.destroy_buffer(self.data.index_buffer, None);
+        self.device.free_memory(self.data.index_buffer_memory, None);
+        debug!("Destroyed vertex & index buffers");
 
 
         self.device.destroy_device(None);
@@ -256,6 +289,9 @@ impl App {
         self.instance.destroy_instance(None);
         debug!("destroyed instance");
     }
+
+
+
 }
 
 
