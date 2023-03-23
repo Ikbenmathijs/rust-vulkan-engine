@@ -11,11 +11,17 @@ use crate::{app::AppData, buffers::{create_buffer, fill_buffer, copy_buffer}};
 
 lazy_static!{
     pub static ref VERTICES: Vec<Vertex> = vec![
-        Vertex::new(vec2(0.0, -0.5), vec3(1.0, 0.0, 0.0)),
-        Vertex::new(vec2(0.5, 0.5), vec3(0.0, 1.0, 0.0)),
+        Vertex::new(vec2(-0.5, -0.5), vec3(1.0, 0.0, 0.0)),
+        Vertex::new(vec2(0.5, -0.5), vec3(0.0, 1.0, 0.0)),
+        Vertex::new(vec2(0.5, 0.5), vec3(0.0, 0.0, 1.0)),
         Vertex::new(vec2(-0.5, 0.5), vec3(0.0, 0.0, 1.0))
     ];
 }
+
+lazy_static!{
+    pub static ref INDICIES: Vec<u32> = vec![0, 1, 2, 2, 3, 0];
+}
+
 
 
 
@@ -63,7 +69,8 @@ pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         size, 
-        vk::BufferUsageFlags::TRANSFER_SRC, 
+        vk::BufferUsageFlags::TRANSFER_SRC,
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         device, 
         instance, 
         data)?;
@@ -82,6 +89,7 @@ pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &
     let (buffer, buffer_memory) = create_buffer(
         size, 
         vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER, 
+        vk::MemoryPropertyFlags::DEVICE_LOCAL,
         device, 
         instance, 
         data)?;
@@ -109,4 +117,53 @@ pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &
 
     return Ok(());
 
+}
+
+
+pub unsafe fn create_index_buffer(instance: &Instance, device: &Device, data: &mut AppData) -> Result<()> {
+
+    let size = (size_of::<u32>() * INDICIES.len()) as u64;
+
+    let (staging_buffer, staging_buffer_memory) = create_buffer(
+        size, 
+        vk::BufferUsageFlags::TRANSFER_SRC, 
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        device, 
+        instance, 
+        data)?;
+    
+    fill_buffer(&staging_buffer, &staging_buffer_memory, 
+        &size, 
+        INDICIES.as_ptr(), 
+        INDICIES.len(), 
+        device)?;
+    
+
+    let (buffer, buffer_memory) = create_buffer(
+        size, 
+        vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER, 
+        vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        device, 
+        instance, 
+        data)?;
+    
+
+    device.bind_buffer_memory(buffer, buffer_memory, 0)?;
+    
+    copy_buffer(
+        device, 
+        data, 
+        staging_buffer, 
+        buffer, 
+        size)?;
+    
+
+    device.destroy_buffer(staging_buffer, None);
+    device.free_memory(staging_buffer_memory, None);
+
+
+    data.index_buffer = buffer;
+    data.index_buffer_memory = buffer_memory;
+
+    return Ok(());
 }

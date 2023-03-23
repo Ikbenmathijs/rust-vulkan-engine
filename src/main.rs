@@ -16,6 +16,7 @@ mod render_pass;
 mod buffers;
 mod sync;
 mod vertex;
+mod ubo;
 
 fn main() -> Result<()> {
     pretty_env_logger::init();

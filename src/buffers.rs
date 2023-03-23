@@ -5,7 +5,7 @@ use std::ptr::copy_nonoverlapping as memcpy;
 
 use crate::app::AppData;
 use crate::device::QueueFamilyIndices;
-use crate::vertex::VERTICES;
+use crate::vertex::{VERTICES, INDICIES};
 
 
 pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result<()> {
@@ -86,9 +86,9 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
         device.cmd_bind_pipeline(*command_buffer, vk::PipelineBindPoint::GRAPHICS, data.pipeline);
 
         device.cmd_bind_vertex_buffers(*command_buffer, 0, &[data.vertex_buffer], &[0]);
+        device.cmd_bind_index_buffer(*command_buffer, data.index_buffer, 0, vk::IndexType::UINT32);
         
-
-        device.cmd_draw(*command_buffer, VERTICES.len() as u32, 1, 0, 0);
+        device.cmd_draw_indexed(*command_buffer, INDICIES.len() as u32, 1, 0, 0, 0);
         device.cmd_end_render_pass(*command_buffer);
 
         device.end_command_buffer(*command_buffer)?;
@@ -103,7 +103,7 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
 
 
 
-pub unsafe fn create_buffer(size: vk::DeviceSize, usage: vk::BufferUsageFlags, device: &Device, instance: &Instance, data: &AppData) -> Result<(vk::Buffer, vk::DeviceMemory)> {
+pub unsafe fn create_buffer(size: vk::DeviceSize, usage: vk::BufferUsageFlags, mem_props: vk::MemoryPropertyFlags, device: &Device, instance: &Instance, data: &AppData) -> Result<(vk::Buffer, vk::DeviceMemory)> {
     let buffer_info = vk::BufferCreateInfo::builder()
         .size(size)
         .usage(usage)
@@ -118,7 +118,7 @@ pub unsafe fn create_buffer(size: vk::DeviceSize, usage: vk::BufferUsageFlags, d
         .memory_type_index(get_memory_type_index(
             instance, 
             data, 
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT, 
+            mem_props, 
             requirements)?);
     
     let device_memory = device.allocate_memory(&allocate_info, None)?;
