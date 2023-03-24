@@ -64,8 +64,8 @@ pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()>
         .depth_clamp_enable(false)
         .rasterizer_discard_enable(false)
         .polygon_mode(vk::PolygonMode::FILL)
-        .cull_mode(vk::CullModeFlags::BACK)
-        .front_face(vk::FrontFace::CLOCKWISE)
+        .cull_mode(vk::CullModeFlags::NONE)
+        .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
         .depth_bias_enable(false)
         .line_width(1.0);
 
@@ -87,7 +87,10 @@ pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()>
         .blend_constants([0.0, 0.0, 0.0, 0.0]);
 
 
-    let pipeline_layout_info = vk::PipelineLayoutCreateInfo::builder();
+    let set_layouts = &[data.descriptor_set_layout];
+
+    let pipeline_layout_info = vk::PipelineLayoutCreateInfo::builder()
+        .set_layouts(set_layouts);
 
     data.pipeline_layout = device.create_pipeline_layout(&pipeline_layout_info, None)?;
 

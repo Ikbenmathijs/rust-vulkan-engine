@@ -2,11 +2,14 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{create_descriptor_set_layout, create_uniform_buffers, UBO}};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{create_descriptor_set_layout, create_uniform_buffers, UBO, create_descriptor_pool, create_descriptor_sets}};
 use log::*;
 use vulkanalia::window as vkWindow;
 use std::time::Instant;
+use std::mem::size_of;
 use nalgebra_glm as glm;
+use std::ptr::copy_nonoverlapping as memcpy;
+
 
 
 #[derive(Clone, Debug, Default)]
@@ -38,7 +41,9 @@ pub struct AppData {
     pub index_buffer: vk::Buffer,
     pub index_buffer_memory: vk::DeviceMemory,
     pub uniform_buffers: Vec<vk::Buffer>,
-    pub uniform_buffer_memory: Vec<vk::DeviceMemory>
+    pub uniform_buffer_memory: Vec<vk::DeviceMemory>,
+    pub descriptor_pool: vk::DescriptorPool,
+    pub descriptor_sets: Vec<vk::DescriptorSet>
 }
 
 
@@ -73,6 +78,9 @@ impl App {
 
         create_descriptor_set_layout(&device, &mut data)?;
         create_uniform_buffers(&instance, &device, &mut data)?;
+        create_descriptor_pool(&device, &mut data)?;
+
+        create_descriptor_sets(&device, &mut data)?;
 
         create_pipeline(&mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
@@ -129,7 +137,7 @@ impl App {
         self.data.images_in_flight[image_index] = in_flight_fence;
 
 
-        self.update_uniform_buffers(image_index);
+        self.update_uniform_buffers(image_index)?;
 
         let wait_semaphores = &[self.data.image_available_semaphores[self.frame]];
         let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -175,35 +183,50 @@ impl App {
 
 
 
-    pub unsafe fn update_uniform_buffers(&self, index: usize) {
+    pub unsafe fn update_uniform_buffers(&self, image_index: usize) -> Result<()> {
 
-        let time_elapsed = self.start.elapsed().as_secs_f32();
+
+        let time = self.start.elapsed().as_secs_f32();
 
 
         let model = glm::rotate(
-            &glm::identity(), 
-            glm::radians(&glm::vec1(90.0 * time_elapsed))[0], 
-            &glm::vec3(0.0, 0.0, 1.0));
+            &glm::identity(),
+            time * glm::radians(&glm::vec1(90.0))[0],
+            &glm::vec3(1.0, 1.0, 0.0),
+        );
 
         let view = glm::look_at(
-            &glm::vec3(2.0, 2.0, 2.0), 
-            &glm::vec3(0.0, 0.0, 0.0), 
-            &glm::vec3(0.0, 1.0, 0.0));
-        
+            &glm::vec3(2.0, 2.0, 2.0),
+            &glm::vec3(0.0, 0.0, 0.0),
+            &glm::vec3(0.0, 0.0, 1.0),
+        );
+
         let mut proj = glm::perspective(
-            self.data.swapchain_extent.width as f32 /self.data.swapchain_extent.height as f32, 
-            glm::radians(&glm::vec1(45.0))[0], 
-            0.5, 
-            100.0);
-        
+            self.data.swapchain_extent.width as f32 / self.data.swapchain_extent.height as f32,
+            glm::radians(&glm::vec1(45.0))[0],
+            0.1,
+            10.0,
+        );
 
         proj[(1, 1)] *= -1.0;
 
-        let ubo = UBO {model, view, proj};
+        let ubo = UBO { model, view, proj };
+
+        // Copy
+
+        let memory = self.device.map_memory(
+            self.data.uniform_buffer_memory[image_index],
+            0,
+            size_of::<UBO>() as u64,
+            vk::MemoryMapFlags::empty(),
+        )?;
+
+        memcpy(&ubo, memory.cast(), 1);
+
+        self.device.unmap_memory(self.data.uniform_buffer_memory[image_index]);
 
 
-        
-
+        Ok(())
 
     }
 
@@ -220,6 +243,9 @@ impl App {
         self.device.destroy_command_pool(self.data.command_pool, None);
         self.device.destroy_command_pool(self.data.transient_command_pool, None);
         debug!("Destroyed command pools");
+
+        self.device.destroy_descriptor_pool(self.data.descriptor_pool, None);
+        debug!("Destroyed descriptor pool!");
 
         self.device.destroy_render_pass(self.data.render_pass, None);
         debug!("Destroyed render pass");
@@ -261,15 +287,20 @@ impl App {
         create_pipeline(&mut self.data, &self.device)?;
 
 
+        create_descriptor_pool(&self.device, &mut self.data)?;
+
+        create_descriptor_sets(&self.device, &mut self.data)?;
+
+
         create_framebuffers(&mut self.data, &self.device)?;
         create_command_pools(&self.device, &self.instance, &mut self.data)?;
         create_command_buffers(&self.device, &mut self.data)?;
+
         
 
 
-
-
-
+        
+        info!("Swapchain & related objects have been re-created!");
         
         return Ok(());
     }
@@ -295,6 +326,8 @@ impl App {
         self.device.destroy_buffer(self.data.index_buffer, None);
         self.device.free_memory(self.data.index_buffer_memory, None);
         debug!("Destroyed vertex & index buffers");
+
+        self.device.destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
 
 
         self.device.destroy_device(None);

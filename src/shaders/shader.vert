@@ -2,10 +2,10 @@
 
 
 
-layout(binding=0) uniform UBO {
+layout(binding=0) uniform UniformBufferObject {
     mat4 model;
-    mat4 proj;
     mat4 view;
+    mat4 proj;
 } ubo;
 
 
