@@ -43,7 +43,10 @@ pub struct AppData {
     pub uniform_buffers: Vec<vk::Buffer>,
     pub uniform_buffer_memory: Vec<vk::DeviceMemory>,
     pub descriptor_pool: vk::DescriptorPool,
-    pub descriptor_sets: Vec<vk::DescriptorSet>
+    pub descriptor_sets: Vec<vk::DescriptorSet>,
+    pub texture_image: vk::Image,
+    pub texture_image_memory: vk::DeviceMemory,
+    pub queue_family_indicies: QueueFamilyIndices
 }
 
 
@@ -67,6 +70,10 @@ impl App {
         data.surface = vkWindow::create_surface(&instance, window)?;
         data.physical_device = pick_physical_device(&instance, &data)?;
         let device = create_logical_device(&instance, &mut data)?;
+
+
+        data.queue_family_indicies = QueueFamilyIndices::get(&instance, &mut data, None)?;
+
         create_swapchain(&instance, &mut data, &device, window)?;
         create_swapchain_image_views(&mut data, &device)?;
 
@@ -87,6 +94,8 @@ impl App {
 
 
         create_command_buffers(&device, &mut data)?;
+
+    
         
 
         for _ in 0..data.swapchain_images.len() {

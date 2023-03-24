@@ -70,6 +70,7 @@ pub unsafe fn create_logical_device(instance: &Instance, data: &mut AppData) -> 
 }
 
 
+#[derive(Clone, Debug, Default)]
 pub struct QueueFamilyIndices {
     pub graphics: u32,
     pub present: u32
