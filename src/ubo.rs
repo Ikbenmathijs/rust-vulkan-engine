@@ -39,6 +39,25 @@ pub unsafe fn create_descriptor_set_layout(device: &Device, data: &mut AppData) 
 
 
 
+pub unsafe fn create_descriptor_pool(device: &Device, data: &mut AppData) -> Result<()> {
+
+    let ubo_size = vk::DescriptorPoolSize::builder()
+        .type_(vk::DescriptorType::UNIFORM_BUFFER)
+        .descriptor_count(data.swapchain_images.len() as u32);
+
+    let pool_sizes = &[ubo_size];
+
+    let pool_create_info = vk::DescriptorPoolCreateInfo::builder()
+        .max_sets(data.swapchain_images.len() as u32)
+        .pool_sizes(pool_sizes);
+
+    
+
+
+    return Ok(());
+}
+
+
 pub unsafe fn create_uniform_buffers(instance: &Instance, device: &Device, data: &mut AppData) -> Result<()> {
 
     data.uniform_buffers.clear();
