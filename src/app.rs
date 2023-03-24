@@ -2,10 +2,11 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{create_descriptor_set_layout, create_uniform_buffers}};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{create_descriptor_set_layout, create_uniform_buffers, UBO}};
 use log::*;
 use vulkanalia::window as vkWindow;
 use std::time::Instant;
+use nalgebra_glm as glm;
 
 
 #[derive(Clone, Debug, Default)]
@@ -179,8 +180,29 @@ impl App {
         let time_elapsed = self.start.elapsed().as_secs_f32();
 
 
-        let model = 
+        let model = glm::rotate(
+            &glm::identity(), 
+            glm::radians(&glm::vec1(90.0 * time_elapsed))[0], 
+            &glm::vec3(0.0, 0.0, 1.0));
 
+        let view = glm::look_at(
+            &glm::vec3(2.0, 2.0, 2.0), 
+            &glm::vec3(0.0, 0.0, 0.0), 
+            &glm::vec3(0.0, 1.0, 0.0));
+        
+        let mut proj = glm::perspective(
+            self.data.swapchain_extent.width as f32 /self.data.swapchain_extent.height as f32, 
+            glm::radians(&glm::vec1(45.0))[0], 
+            0.5, 
+            100.0);
+        
+
+        proj[(1, 1)] *= -1.0;
+
+        let ubo = UBO {model, view, proj};
+
+
+        
 
 
     }
