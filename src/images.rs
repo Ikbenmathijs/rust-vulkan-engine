@@ -2,6 +2,7 @@ use vulkanalia::prelude::v1_0::*;
 use anyhow::{anyhow, Result};
 use log::*;
 use std::fs::File;
+use png::ColorType;
 
 use crate::{app::AppData, buffers::{create_buffer, fill_buffer, get_memory_type_index, begin_single_time_commands, end_single_time_commands}};
 
@@ -40,11 +41,29 @@ pub unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &
     let mut reader = decorder.read_info()?;
 
 
+    debug!("Color type is {:?}", reader.info().color_type);
 
-    let mut pixels = vec![0; reader.info().raw_bytes()];
-    reader.next_frame(&mut pixels)?;
 
-    let size = reader.info().raw_bytes() as u64;
+    let mut buffer = vec![0; reader.info().raw_bytes()];
+    reader.next_frame(&mut buffer)?;
+
+    let pixels: Vec<u8>;
+
+
+    if reader.info().color_type == ColorType::Rgb {
+        // convert to RGBA
+        pixels = buffer.chunks_exact(3)
+        .flat_map(|rgb| {
+            vec!(rgb[0], rgb[1], rgb[2], 255)
+        })
+        .collect::<Vec<_>>();
+        debug!("Image converted to RGBA")
+    } else {
+        pixels = buffer;
+    }
+
+
+    let size = pixels.len() as u64;
     let (width, height) = reader.info().size();
 
 
