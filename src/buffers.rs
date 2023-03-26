@@ -168,22 +168,40 @@ pub unsafe fn copy_buffer(
     size: u64
 ) -> Result<()> {
     debug!("Copying buffer");
-    let allocate_info = vk::CommandBufferAllocateInfo::builder()
-        .command_pool(data.transient_command_pool)
-        .level(vk::CommandBufferLevel::PRIMARY)
-        .command_buffer_count(1);
-
-
-    let command_buffer = device.allocate_command_buffers(&allocate_info)?[0];
-
-    let begin_info = vk::CommandBufferBeginInfo::builder()
-        .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-
-    device.begin_command_buffer(command_buffer, &begin_info)?;
+    let command_buffer = begin_single_time_commands(device, data)?;
 
     let region = vk::BufferCopy::builder().size(size);
 
     device.cmd_copy_buffer(command_buffer, src, dst, &[region]);
+
+    end_single_time_commands(device, data, command_buffer)?;
+
+
+    Ok(())
+}
+
+
+
+pub unsafe fn begin_single_time_commands(device: &Device, data: &AppData) -> Result<vk::CommandBuffer> {
+
+    let command_buffer_info = vk::CommandBufferAllocateInfo::builder()
+    .command_pool(data.transient_command_pool)
+    .level(vk::CommandBufferLevel::PRIMARY)
+    .command_buffer_count(1);
+
+    let command_buffer = device.allocate_command_buffers(&command_buffer_info)?[0];
+
+    let begin_info = vk::CommandBufferBeginInfo::builder()
+    .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+    device.begin_command_buffer(command_buffer, &begin_info)?;
+
+    Ok(command_buffer)
+}
+
+
+
+pub unsafe fn end_single_time_commands(device: &Device, data: &AppData, command_buffer: vk::CommandBuffer) -> Result<()> {
 
     device.end_command_buffer(command_buffer)?;
 
@@ -193,19 +211,17 @@ pub unsafe fn copy_buffer(
         .command_buffers(command_buffers);
 
     device.queue_submit(data.graphics_queue, &[submit_info], vk::Fence::null())?;
-    device.queue_wait_idle(data.graphics_queue)?;
-    
-    device.free_command_buffers(data.transient_command_pool, command_buffers);
 
+    device.queue_wait_idle(data.graphics_queue)?;
+
+    device.free_command_buffers(data.transient_command_pool, command_buffers);
 
     Ok(())
 }
 
 
 
-
-
-unsafe fn get_memory_type_index(
+pub unsafe fn get_memory_type_index(
     instance: &Instance,
     data: &AppData,
     properties: vk::MemoryPropertyFlags,

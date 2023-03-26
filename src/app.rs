@@ -2,13 +2,14 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{create_descriptor_set_layout, create_uniform_buffers, UBO, create_descriptor_pool, create_descriptor_sets}};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{ create_uniform_buffers, MVP_UBO}, images::{create_texture_image, create_texture_image_view, create_texture_sampler}};
 use log::*;
 use vulkanalia::window as vkWindow;
 use std::time::Instant;
 use std::mem::size_of;
 use nalgebra_glm as glm;
 use std::ptr::copy_nonoverlapping as memcpy;
+use crate::descriptors::{create_descriptor_pool, create_descriptor_sets, create_descriptor_set_layout};
 
 
 
@@ -44,9 +45,11 @@ pub struct AppData {
     pub uniform_buffer_memory: Vec<vk::DeviceMemory>,
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
+    pub queue_family_indicies: QueueFamilyIndices,
     pub texture_image: vk::Image,
     pub texture_image_memory: vk::DeviceMemory,
-    pub queue_family_indicies: QueueFamilyIndices
+    pub texture_image_view: vk::ImageView,
+    pub texture_image_sampler: vk::Sampler
 }
 
 
@@ -83,6 +86,13 @@ impl App {
         create_vertex_buffer(&instance, &device, &mut data)?;
         create_index_buffer(&instance, &device, &mut data)?;
 
+
+        create_texture_image(&instance, &device, &mut data)?;
+        create_texture_image_view(&device, &mut data)?;
+        create_texture_sampler(&device, &mut data)?;
+
+        
+
         create_descriptor_set_layout(&device, &mut data)?;
         create_uniform_buffers(&instance, &device, &mut data)?;
         create_descriptor_pool(&device, &mut data)?;
@@ -94,6 +104,8 @@ impl App {
 
 
         create_command_buffers(&device, &mut data)?;
+
+        
 
     
         
@@ -219,14 +231,14 @@ impl App {
 
         proj[(1, 1)] *= -1.0;
 
-        let ubo = UBO { model, view, proj };
+        let ubo = MVP_UBO { model, view, proj };
 
         // Copy
 
         let memory = self.device.map_memory(
             self.data.uniform_buffer_memory[image_index],
             0,
-            size_of::<UBO>() as u64,
+            size_of::<MVP_UBO>() as u64,
             vk::MemoryMapFlags::empty(),
         )?;
 
@@ -323,11 +335,13 @@ impl App {
         self.data.render_finished_semaphores.iter().for_each(|s| self.device.destroy_semaphore(*s, None));
         self.data.in_flight_fences.iter().for_each(|f| self.device.destroy_fence(*f, None));
         debug!("Destroyed fences & semaphores");
-
-
-
         
         self.destroy_swapchain();
+
+        self.device.destroy_sampler(self.data.texture_image_sampler, None);
+        self.device.destroy_image_view(self.data.texture_image_view, None);
+        self.device.destroy_image(self.data.texture_image, None);
+        self.device.free_memory(self.data.texture_image_memory, None);
         
 
         self.device.destroy_buffer(self.data.vertex_buffer, None);

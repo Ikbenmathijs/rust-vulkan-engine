@@ -5,7 +5,7 @@ use log::*;
 use crate::app::AppData;
 
 
-const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name, vk::AMD_DEVICE_COHERENT_MEMORY_EXTENSION.name];
+const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name];
 
 
 pub unsafe fn pick_physical_device(instance: &Instance, data: &AppData) -> Result<vk::PhysicalDevice> {
@@ -45,19 +45,16 @@ pub unsafe fn create_logical_device(instance: &Instance, data: &mut AppData) -> 
     let extensions = DEVICE_EXTENSIONS.iter().map(|n| n.as_ptr()).collect::<Vec<_>>();
 
 
+    let features = vk::PhysicalDeviceFeatures::builder()
+        .sampler_anisotropy(true);
 
 
 
-
-    let mut info = vk::DeviceCreateInfo::builder()
+    let info = vk::DeviceCreateInfo::builder()
         .queue_create_infos(queue_infos)
         .enabled_layer_names(&layers)
-        .enabled_extension_names(&extensions);
-
-    let mut coherent_feature = vk::PhysicalDeviceCoherentMemoryFeaturesAMD::builder()
-        .device_coherent_memory(true).build();
-
-    info.push_next(&mut coherent_feature);
+        .enabled_extension_names(&extensions)
+        .enabled_features(&features);
 
     let device = instance.create_device(*physical_device, &info, None)?;
 

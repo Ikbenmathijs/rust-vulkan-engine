@@ -17,6 +17,7 @@ mod buffers;
 mod sync;
 mod vertex;
 mod ubo;
+mod descriptors;
 
 fn main() -> Result<()> {
     pretty_env_logger::init();

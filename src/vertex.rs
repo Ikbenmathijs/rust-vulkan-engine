@@ -11,10 +11,10 @@ use crate::{app::AppData, buffers::{create_buffer, fill_buffer, copy_buffer}};
 
 lazy_static!{
     pub static ref VERTICES: Vec<Vertex> = vec![
-        Vertex::new(vec2(-0.5, -0.5), vec3(1.0, 0.0, 0.0)),
-        Vertex::new(vec2(0.5, -0.5), vec3(0.0, 1.0, 0.0)),
-        Vertex::new(vec2(0.5, 0.5), vec3(0.0, 0.0, 1.0)),
-        Vertex::new(vec2(-0.5, 0.5), vec3(0.0, 0.0, 1.0))
+        Vertex::new(vec2(-0.5, -0.5), vec3(1.0, 0.0, 0.0), vec2(1.0, 0.0)),
+        Vertex::new(vec2(0.5, -0.5), vec3(0.0, 1.0, 0.0), vec2(0.0, 0.0)),
+        Vertex::new(vec2(0.5, 0.5), vec3(0.0, 0.0, 1.0), vec2(0.0, 1.0)),
+        Vertex::new(vec2(-0.5, 0.5), vec3(0.0, 0.0, 1.0), vec2(1.0, 1.0))
     ];
 }
 
@@ -28,13 +28,14 @@ lazy_static!{
 #[repr(C)]
 pub struct Vertex {
     pub pos: Vec2,
-    pub color: Vec3
+    pub color: Vec3,
+    pub tex_coord: Vec2
 }
 
 
 impl Vertex {
-    pub fn new(pos: Vec2, color: Vec3) -> Vertex {
-        return Vertex {pos, color};
+    pub fn new(pos: Vec2, color: Vec3, tex_coord: Vec2) -> Vertex {
+        return Vertex {pos, color, tex_coord};
     }
 
     pub fn binding_description() -> vk::VertexInputBindingDescription {
@@ -44,7 +45,7 @@ impl Vertex {
             .input_rate(vk::VertexInputRate::VERTEX).build()
     }
 
-    pub fn attribute_description() -> [vk::VertexInputAttributeDescription; 2] {
+    pub fn attribute_description() -> [vk::VertexInputAttributeDescription; 3] {
         let pos = vk::VertexInputAttributeDescription::builder()
             .location(0)
             .binding(0)
@@ -57,7 +58,13 @@ impl Vertex {
             .format(vk::Format::R32G32B32_SFLOAT)
             .offset(size_of::<Vec2>() as u32).build();
 
-        [pos, color]
+        let tex_coord = vk::VertexInputAttributeDescription::builder()
+            .location(2)
+            .binding(0)
+            .format(vk::Format::R32G32_SFLOAT)
+            .offset((size_of::<Vec2>() + size_of::<Vec3>()) as u32).build();
+
+        [pos, color, tex_coord]
     }
 }
 
