@@ -327,7 +327,7 @@ pub unsafe fn get_supported_format(
 }
 
 
-unsafe fn get_depth_format(instance: &Instance, data: &AppData) -> Result<vk::Format> {
+pub unsafe fn get_depth_format(instance: &Instance, data: &AppData) -> Result<vk::Format> {
     let candidates = &[
         vk::Format::D32_SFLOAT,
         vk::Format::D32_SFLOAT_S8_UINT,
@@ -358,7 +358,29 @@ pub unsafe fn create_depth_buffer(
         instance, 
         device, 
         data, 
-        , width, height, usage, format)
+        data.swapchain_extent.width, 
+        data.swapchain_extent.height, 
+        vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT, 
+        format)?;
+
+    device.bind_image_memory(depth_image, depth_image_memory, 0)?;
+
+
+    data.depth_image = depth_image;
+    data.depth_image_memory = depth_image_memory;
+
+
+    let subresource = vk::ImageSubresourceRange::builder()
+        .aspect_mask(vk::ImageAspectFlags::DEPTH)
+        .base_mip_level(0)
+        .level_count(1)
+        .base_array_layer(0)
+        .layer_count(1).build();
+
+    data.depth_image_view = create_image_view(&data.depth_image, device, format, subresource)?;
+
+
+
 
 
     return Ok(());
