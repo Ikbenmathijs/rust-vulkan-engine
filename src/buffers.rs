@@ -11,7 +11,7 @@ use crate::vertex::{VERTICES, INDICIES};
 pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result<()> {
     
     data.framebuffers = data.swapchain_image_views.iter().map(|i| {
-        let attachments = &[*i];
+        let attachments = &[*i, data.depth_image_view];
 
         let framebuffer_info = vk::FramebufferCreateInfo::builder()
             .render_pass(data.render_pass)
@@ -74,7 +74,14 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
             }
         };
 
-        let clear_values = &[clear_value];
+        let depth_clear_value = vk::ClearValue {
+            depth_stencil: vk::ClearDepthStencilValue {
+                depth: 1.0,
+                stencil: 0
+            }
+        };
+
+        let clear_values = &[clear_value, depth_clear_value];
 
         let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
             .render_pass(data.render_pass)

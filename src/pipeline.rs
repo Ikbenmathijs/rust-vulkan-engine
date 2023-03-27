@@ -7,7 +7,7 @@ use crate::{app::AppData, render_pass::create_render_pass};
 
 
 
-pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()> {
+pub unsafe fn create_pipeline(instance: &Instance, data: &mut AppData, device: &Device) -> Result<()> {
 
 
     let binding_descriptions = [Vertex::binding_description()];
@@ -95,7 +95,7 @@ pub unsafe fn create_pipeline(data: &mut AppData, device: &Device) -> Result<()>
     data.pipeline_layout = device.create_pipeline_layout(&pipeline_layout_info, None)?;
 
 
-    let render_pass = create_render_pass(device, data)?;
+    let render_pass = create_render_pass(instance, device, data)?;
 
     data.render_pass = render_pass;
 

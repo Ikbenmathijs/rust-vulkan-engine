@@ -102,7 +102,7 @@ impl App {
 
         create_descriptor_sets(&device, &mut data)?;
 
-        create_pipeline(&mut data, &device)?;
+        create_pipeline(&instance, &mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
 
 
@@ -308,7 +308,7 @@ impl App {
 
         create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
 
-        create_pipeline(&mut self.data, &self.device)?;
+        create_pipeline(&self.instance, &mut self.data, &self.device)?;
 
 
         create_descriptor_pool(&self.device, &mut self.data)?;
