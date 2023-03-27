@@ -1,11 +1,11 @@
-use vulkanalia::{prelude::v1_0::*, vk::CommandPool};
+use vulkanalia::prelude::v1_0::*;
 use log::*;
 use anyhow::{Result, anyhow};
 use std::ptr::copy_nonoverlapping as memcpy;
 
 use crate::app::AppData;
 use crate::device::QueueFamilyIndices;
-use crate::vertex::{VERTICES, INDICIES};
+use crate::vertex::{INDICIES};
 
 
 pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result<()> {
