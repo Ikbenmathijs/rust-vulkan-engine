@@ -49,7 +49,10 @@ pub struct AppData {
     pub texture_image: vk::Image,
     pub texture_image_memory: vk::DeviceMemory,
     pub texture_image_view: vk::ImageView,
-    pub texture_image_sampler: vk::Sampler
+    pub texture_image_sampler: vk::Sampler,
+    pub depth_image: vk::Image,
+    pub depth_image_memory: vk::DeviceMemory,
+    pub depth_image_view: vk::ImageView
 }
 
 
@@ -213,7 +216,7 @@ impl App {
         let model = glm::rotate(
             &glm::identity(),
             time * glm::radians(&glm::vec1(90.0))[0],
-            &glm::vec3(1.0, 1.0, 0.0),
+            &glm::vec3(0.0, 0.0, 1.0),
         );
 
         let view = glm::look_at(
@@ -222,7 +225,7 @@ impl App {
             &glm::vec3(0.0, 0.0, 1.0),
         );
 
-        let mut proj = glm::perspective(
+        let mut proj = glm::perspective_rh_zo(
             self.data.swapchain_extent.width as f32 / self.data.swapchain_extent.height as f32,
             glm::radians(&glm::vec1(45.0))[0],
             0.1,

@@ -7,14 +7,6 @@ use png::ColorType;
 use crate::{app::AppData, buffers::{create_buffer, fill_buffer, get_memory_type_index, begin_single_time_commands, end_single_time_commands}};
 
 
-/*unsafe fn create_image(format: vk::Format, width: u32, height: u32) -> Result<vk::Image> {
-    let info = vk::ImageCreateInfo::builder()
-        .image_type(vk::ImageType::_2D)
-        .extent(vk::Extent2D{width, height});
-
-}*/
-
-
 pub unsafe fn create_image_view(image: &vk::Image,
     device: &Device,
     format: vk::Format, 
@@ -84,7 +76,14 @@ pub unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &
         device)?;
 
 
-    let (image, image_memory) = create_image(instance, device, data, size, width, height, vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST)?;
+    let (image, image_memory) = create_image(
+        instance, 
+        device, 
+        data, 
+        width, 
+        height, 
+        vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST,
+    vk::Format::R8G8B8A8_SRGB)?;
     
     device.bind_image_memory(image, image_memory, 0)?;
 
@@ -259,7 +258,7 @@ pub unsafe fn copy_buffer_to_image(
     return Ok(());
 }
 
-pub unsafe fn create_image(instance: &Instance, device: &Device, data: &mut AppData, size: u64, width: u32, height: u32, usage: vk::ImageUsageFlags) -> Result<(vk::Image, vk::DeviceMemory)> {
+pub unsafe fn create_image(instance: &Instance, device: &Device, data: &mut AppData, width: u32, height: u32, usage: vk::ImageUsageFlags, format: vk::Format) -> Result<(vk::Image, vk::DeviceMemory)> {
 
 
 
@@ -267,7 +266,7 @@ pub unsafe fn create_image(instance: &Instance, device: &Device, data: &mut AppD
 
     let info = vk::ImageCreateInfo::builder()
     .image_type(vk::ImageType::_2D)
-    .format(vk::Format::R8G8B8A8_SRGB)
+    .format(format)
     .extent(vk::Extent3D {width, height, depth: 1})
     .mip_levels(1)
     .array_layers(1)
@@ -283,10 +282,9 @@ pub unsafe fn create_image(instance: &Instance, device: &Device, data: &mut AppD
 
     let requirements = device.get_image_memory_requirements(image);
 
-    debug!("Pixels size: {}, requirements size: {}", size, requirements.size);
 
     let allocate_info = vk::MemoryAllocateInfo::builder()
-        .allocation_size(size)
+        .allocation_size(requirements.size)
         .memory_type_index(
             get_memory_type_index(
             instance, 
@@ -302,3 +300,66 @@ pub unsafe fn create_image(instance: &Instance, device: &Device, data: &mut AppD
     return Ok((image, memory));
 }
 
+
+
+
+pub unsafe fn get_supported_format(
+    instance: &Instance,
+    data: &AppData,
+    candidates: &[vk::Format],
+    tiling: vk::ImageTiling,
+    features: vk::FormatFeatureFlags
+) -> Result<vk::Format> {
+
+    candidates.iter()
+        .cloned()
+        .find(|f| {
+            let props = instance.get_physical_device_format_properties(
+                data.physical_device, 
+            *f);
+
+            match tiling {
+                vk::ImageTiling::LINEAR => props.linear_tiling_features.contains(features),
+                vk::ImageTiling::OPTIMAL => props.optimal_tiling_features.contains(features),
+                _ => false
+            }
+        }).ok_or_else(|| anyhow!("None of the formats in {:?} are supported.", candidates))
+}
+
+
+unsafe fn get_depth_format(instance: &Instance, data: &AppData) -> Result<vk::Format> {
+    let candidates = &[
+        vk::Format::D32_SFLOAT,
+        vk::Format::D32_SFLOAT_S8_UINT,
+        vk::Format::D24_UNORM_S8_UINT,
+    ];
+
+    get_supported_format(
+        instance,
+        data,
+        candidates,
+        vk::ImageTiling::OPTIMAL,
+        vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+    )
+}
+
+
+
+pub unsafe fn create_depth_buffer(
+    instance: &Instance,
+    device: &Device, 
+    data: &mut AppData
+) -> Result<()> {
+
+
+    let format = get_depth_format(instance, data)?;
+
+    let (depth_image, depth_image_memory) = create_image(
+        instance, 
+        device, 
+        data, 
+        , width, height, usage, format)
+
+
+    return Ok(());
+}

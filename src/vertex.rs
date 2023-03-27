@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use vulkanalia::prelude::v1_0::*;
-use nalgebra_glm::{vec3, Vec3, Vec2, vec2};
+use nalgebra_glm as glm;
+use nalgebra_glm::{Vec3, Vec2};
 use std::mem::size_of;
 use anyhow::Result;
 use log::*;
@@ -11,15 +12,22 @@ use crate::{app::AppData, buffers::{create_buffer, fill_buffer, copy_buffer}};
 
 lazy_static!{
     pub static ref VERTICES: Vec<Vertex> = vec![
-        Vertex::new(vec2(-0.5, -0.5), vec3(1.0, 0.0, 0.0), vec2(1.0, 0.0)),
-        Vertex::new(vec2(0.5, -0.5), vec3(0.0, 1.0, 0.0), vec2(0.0, 0.0)),
-        Vertex::new(vec2(0.5, 0.5), vec3(0.0, 0.0, 1.0), vec2(0.0, 1.0)),
-        Vertex::new(vec2(-0.5, 0.5), vec3(0.0, 0.0, 1.0), vec2(1.0, 1.0))
+        Vertex::new(glm::vec3(-0.5, -0.5, 0.0),glm::vec3(1.0, 0.0, 0.0),glm::vec2(1.0, 0.0)),
+        Vertex::new(glm::vec3(0.5, -0.5, 0.0), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 0.0)),
+        Vertex::new(glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0), glm::vec2(0.0, 1.0)),
+        Vertex::new(glm::vec3(-0.5, 0.5, 0.0), glm::vec3(1.0, 1.0, 1.0), glm::vec2(1.0, 1.0)),
+        Vertex::new(glm::vec3(-0.5, -0.5, -0.5), glm::vec3(1.0, 0.0, 0.0), glm::vec2(1.0, 0.0)),
+        Vertex::new(glm::vec3(0.5, -0.5, -0.5), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 0.0)),
+        Vertex::new(glm::vec3(0.5, 0.5, -0.5), glm::vec3(0.0, 0.0, 1.0), glm::vec2(0.0, 1.0)),
+        Vertex::new(glm::vec3(-0.5, 0.5, -0.5), glm::vec3(1.0, 1.0, 1.0), glm::vec2(1.0, 1.0))
     ];
 }
 
 lazy_static!{
-    pub static ref INDICIES: Vec<u32> = vec![0, 1, 2, 2, 3, 0];
+    pub static ref INDICIES: Vec<u32> = vec![
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4,
+];
 }
 
 
@@ -27,14 +35,14 @@ lazy_static!{
 
 #[repr(C)]
 pub struct Vertex {
-    pub pos: Vec2,
+    pub pos: Vec3,
     pub color: Vec3,
     pub tex_coord: Vec2
 }
 
 
 impl Vertex {
-    pub fn new(pos: Vec2, color: Vec3, tex_coord: Vec2) -> Vertex {
+    pub fn new(pos: Vec3, color: Vec3, tex_coord: Vec2) -> Vertex {
         return Vertex {pos, color, tex_coord};
     }
 
@@ -49,20 +57,20 @@ impl Vertex {
         let pos = vk::VertexInputAttributeDescription::builder()
             .location(0)
             .binding(0)
-            .format(vk::Format::R32G32_SFLOAT)
+            .format(vk::Format::R32G32B32_SFLOAT)
             .offset(0).build();
 
         let color = vk::VertexInputAttributeDescription::builder()
             .location(1)
             .binding(0)
             .format(vk::Format::R32G32B32_SFLOAT)
-            .offset(size_of::<Vec2>() as u32).build();
+            .offset(size_of::<Vec3>() as u32).build();
 
         let tex_coord = vk::VertexInputAttributeDescription::builder()
             .location(2)
             .binding(0)
             .format(vk::Format::R32G32_SFLOAT)
-            .offset((size_of::<Vec2>() + size_of::<Vec3>()) as u32).build();
+            .offset((size_of::<Vec3>() + size_of::<Vec3>()) as u32).build();
 
         [pos, color, tex_coord]
     }
