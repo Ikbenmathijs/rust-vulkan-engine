@@ -16,10 +16,10 @@ lazy_static!{
         Vertex::new(glm::vec3(0.5, -0.5, 0.0), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 0.0)),
         Vertex::new(glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0), glm::vec2(0.0, 1.0)),
         Vertex::new(glm::vec3(-0.5, 0.5, 0.0), glm::vec3(1.0, 1.0, 1.0), glm::vec2(1.0, 1.0)),
-        Vertex::new(glm::vec3(-0.5, -0.5, -0.5), glm::vec3(1.0, 0.0, 0.0), glm::vec2(1.0, 0.0)),
-        Vertex::new(glm::vec3(0.5, -0.5, -0.5), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 0.0)),
-        Vertex::new(glm::vec3(0.5, 0.5, -0.5), glm::vec3(0.0, 0.0, 1.0), glm::vec2(0.0, 1.0)),
-        Vertex::new(glm::vec3(-0.5, 0.5, -0.5), glm::vec3(1.0, 1.0, 1.0), glm::vec2(1.0, 1.0))
+        Vertex::new(glm::vec3(-0.5, -0.5, -1.0), glm::vec3(1.0, 0.0, 0.0), glm::vec2(1.0, 0.0)),
+        Vertex::new(glm::vec3(0.5, -0.5, -1.0), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 0.0)),
+        Vertex::new(glm::vec3(0.5, 0.5, -1.0), glm::vec3(0.0, 0.0, 1.0), glm::vec2(0.0, 1.0)),
+        Vertex::new(glm::vec3(-0.5, 0.5, -1.0), glm::vec3(1.0, 1.0, 1.0), glm::vec2(1.0, 1.0))
     ];
 }
 
@@ -27,6 +27,12 @@ lazy_static!{
     pub static ref INDICIES: Vec<u32> = vec![
     0, 1, 2, 2, 3, 0,
     4, 5, 6, 6, 7, 4,
+
+    0, 3, 7, 7, 4, 0,
+    0, 1, 5, 5, 4, 0,
+    1, 2, 6, 1, 5, 6,
+    2, 3, 7, 7, 6, 2,
+    
 ];
 }
 

@@ -101,6 +101,12 @@ pub unsafe fn create_pipeline(instance: &Instance, data: &mut AppData, device: &
 
     let stages = &[vertex_stage_info, fragment_stage_info];
 
+    let depth_stencil_stage = vk::PipelineDepthStencilStateCreateInfo::builder()
+        .depth_test_enable(true)
+        .depth_write_enable(true)
+        .depth_compare_op(vk::CompareOp::LESS)
+        .stencil_test_enable(false);
+
 
 
 
@@ -117,6 +123,7 @@ pub unsafe fn create_pipeline(instance: &Instance, data: &mut AppData, device: &
         .rasterization_state(&rasterization_state)
         .multisample_state(&multi_sample_state)
         .color_blend_state(&color_blend_state)
+        .depth_stencil_state(&depth_stencil_stage)
         .layout(data.pipeline_layout)
         .render_pass(render_pass)
         .subpass(0);

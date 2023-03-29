@@ -2,7 +2,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{ create_uniform_buffers, MVP_UBO}, images::{create_texture_image, create_texture_image_view, create_texture_sampler}};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer}, ubo::{ create_uniform_buffers, MVP_UBO}, images::{create_texture_image, create_texture_image_view, create_texture_sampler, create_depth_buffer}};
 use log::*;
 use vulkanalia::window as vkWindow;
 use std::time::Instant;
@@ -94,7 +94,7 @@ impl App {
         create_texture_image_view(&device, &mut data)?;
         create_texture_sampler(&device, &mut data)?;
 
-        
+        create_depth_buffer(&instance, &device, &mut data)?;
 
         create_descriptor_set_layout(&device, &mut data)?;
         create_uniform_buffers(&instance, &device, &mut data)?;
