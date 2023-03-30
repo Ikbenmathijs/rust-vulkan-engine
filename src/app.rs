@@ -1,3 +1,4 @@
+use glm::translate;
 use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEXT, ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainExtension}};
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
@@ -213,11 +214,13 @@ impl App {
         let time = self.start.elapsed().as_secs_f32();
 
 
-        let model = glm::rotate(
+        let mut model = glm::rotate(
             &glm::identity(),
             time * glm::radians(&glm::vec1(90.0))[0],
-            &glm::vec3(0.0, 0.0, 1.0),
+            &glm::vec3(1.0, 1.0, 0.0),
         );
+
+        model = translate(&glm::identity(), &glm::vec3(0.0, 0.0, (time * 5.0).sin())) * model;
 
         let view = glm::look_at(
             &glm::vec3(2.0, 2.0, 2.0),
@@ -255,6 +258,14 @@ impl App {
     }
 
     pub unsafe fn destroy_swapchain(&mut self) {
+
+        self.device.destroy_image(self.data.depth_image, None);
+        self.device.free_memory(self.data.depth_image_memory, None);
+        self.device.destroy_image_view(self.data.depth_image_view, None);
+        debug!("Destroyed depth buffer");
+
+
+
         self.data.framebuffers.iter().for_each(|f| self.device.destroy_framebuffer(*f, None));
         debug!("Destroyed frame buffers");
 
@@ -306,6 +317,8 @@ impl App {
         create_swapchain(&self.instance, &mut self.data, &self.device, window)?;
         create_swapchain_image_views(&mut self.data, &self.device)?;
 
+        create_depth_buffer(&self.instance, &self.device, &mut self.data)?;
+
         create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
 
         create_pipeline(&self.instance, &mut self.data, &self.device)?;
@@ -347,9 +360,7 @@ impl App {
         self.device.free_memory(self.data.texture_image_memory, None);
         debug!("Destroyed textre");
 
-        self.device.destroy_image(self.data.depth_image, None);
-        self.device.free_memory(self.data.depth_image_memory, None);
-        self.device.destroy_image_view(self.data.depth_image_view, None);
+        
         
 
         self.device.destroy_buffer(self.data.vertex_buffer, None);
