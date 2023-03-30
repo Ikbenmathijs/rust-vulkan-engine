@@ -111,10 +111,6 @@ pub unsafe fn create_pipeline(instance: &Instance, data: &mut AppData, device: &
 
 
 
-    let depth_stencil_state
-
-
-
     let pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
         .stages(stages)
         .vertex_input_state(&vertex_input_stage)

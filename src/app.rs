@@ -345,6 +345,11 @@ impl App {
         self.device.destroy_image_view(self.data.texture_image_view, None);
         self.device.destroy_image(self.data.texture_image, None);
         self.device.free_memory(self.data.texture_image_memory, None);
+        debug!("Destroyed textre");
+
+        self.device.destroy_image(self.data.depth_image, None);
+        self.device.free_memory(self.data.depth_image_memory, None);
+        self.device.destroy_image_view(self.data.depth_image_view, None);
         
 
         self.device.destroy_buffer(self.data.vertex_buffer, None);
