@@ -5,45 +5,48 @@ use nalgebra_glm::{Vec3, Vec2};
 use std::mem::size_of;
 use anyhow::Result;
 use log::*;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::io::BufReader;
+use std::fs::File;
 
 use crate::{app::AppData, buffers::{create_buffer, fill_buffer, copy_buffer}};
 
 
 
-lazy_static!{
-    pub static ref VERTICES: Vec<Vertex> = vec![
-        Vertex::new(glm::vec3(-0.5, -0.5, 0.0),glm::vec3(1.0, 0.0, 0.0),glm::vec2(1.0, 0.0)),
-        Vertex::new(glm::vec3(0.5, -0.5, 0.0), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 0.0)),
-        Vertex::new(glm::vec3(0.5, 0.5, 0.0), glm::vec3(0.0, 0.0, 1.0), glm::vec2(0.0, 1.0)),
-        Vertex::new(glm::vec3(-0.5, 0.5, 0.0), glm::vec3(1.0, 1.0, 1.0), glm::vec2(1.0, 1.0)),
-        Vertex::new(glm::vec3(-0.5, -0.5, -1.0), glm::vec3(1.0, 0.0, 0.0), glm::vec2(1.0, 0.0)),
-        Vertex::new(glm::vec3(0.5, -0.5, -1.0), glm::vec3(0.0, 1.0, 0.0), glm::vec2(0.0, 0.0)),
-        Vertex::new(glm::vec3(0.5, 0.5, -1.0), glm::vec3(0.0, 0.0, 1.0), glm::vec2(0.0, 1.0)),
-        Vertex::new(glm::vec3(-0.5, 0.5, -1.0), glm::vec3(1.0, 1.0, 1.0), glm::vec2(1.0, 1.0))
-    ];
-}
-
-lazy_static!{
-    pub static ref INDICIES: Vec<u32> = vec![
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4,
-
-    0, 3, 7, 7, 4, 0,
-    0, 1, 5, 5, 4, 0,
-    1, 2, 6, 1, 5, 6,
-    2, 3, 7, 7, 6, 2,
-    
-];
-}
-
-
-
-
 #[repr(C)]
+#[derive(Clone, Debug)]
 pub struct Vertex {
     pub pos: Vec3,
     pub color: Vec3,
     pub tex_coord: Vec2
+}
+
+
+
+pub unsafe fn load_model(data: &mut AppData) -> Result<()> {
+
+    let mut reader = BufReader::new(File::open("resources/viking_room.obj")?);
+
+    let (models, _) = tobj::load_obj_buf(
+        &mut reader, 
+        &tobj::LoadOptions { triangulate: true, ..Default::default() }, 
+        |_| Ok(Default::default()))?;
+    
+    for model in &models {
+        for index in &model.mesh.indices {
+            let vertex = Vertex {
+                
+            };
+
+
+            
+            data.vertices.push(vertex);
+            data.indicies.push(data.indicies.len() as u32);
+        }
+    }
+
+    return Ok(());
 }
 
 
@@ -85,7 +88,7 @@ impl Vertex {
 
 pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &mut AppData) -> Result<()> {
 
-    let size = (size_of::<Vertex>() * VERTICES.len()) as u64;
+    let size = (size_of::<Vertex>() * data.vertices.len()) as u64;
 
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
@@ -101,8 +104,8 @@ pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &
         &staging_buffer, 
         &staging_buffer_memory, 
         &size, 
-        VERTICES.as_ptr(), 
-        VERTICES.len(), 
+        data.vertices.as_ptr(), 
+        data.vertices.len(), 
         device)?;
     
 
@@ -143,7 +146,7 @@ pub unsafe fn create_vertex_buffer(instance: &Instance, device: &Device, data: &
 
 pub unsafe fn create_index_buffer(instance: &Instance, device: &Device, data: &mut AppData) -> Result<()> {
 
-    let size = (size_of::<u32>() * INDICIES.len()) as u64;
+    let size = (size_of::<u32>() * data.indicies.len()) as u64;
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         size, 
@@ -155,8 +158,8 @@ pub unsafe fn create_index_buffer(instance: &Instance, device: &Device, data: &m
     
     fill_buffer(&staging_buffer, &staging_buffer_memory, 
         &size, 
-        INDICIES.as_ptr(), 
-        INDICIES.len(), 
+        data.indicies.as_ptr(), 
+        data.indicies.len(), 
         device)?;
     
 

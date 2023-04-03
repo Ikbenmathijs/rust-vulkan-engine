@@ -5,7 +5,6 @@ use std::ptr::copy_nonoverlapping as memcpy;
 
 use crate::app::AppData;
 use crate::device::QueueFamilyIndices;
-use crate::vertex::{INDICIES};
 
 
 pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result<()> {
@@ -98,7 +97,7 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
 
         device.cmd_bind_descriptor_sets(*command_buffer, vk::PipelineBindPoint::GRAPHICS, data.pipeline_layout, 0, &[data.descriptor_sets[i]], &[]);
 
-        device.cmd_draw_indexed(*command_buffer, INDICIES.len() as u32, 1, 0, 0, 0);
+        device.cmd_draw_indexed(*command_buffer, data.indicies.len() as u32, 1, 0, 0, 0);
         device.cmd_end_render_pass(*command_buffer);
 
         device.end_command_buffer(*command_buffer)?;
