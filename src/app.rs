@@ -47,6 +47,7 @@ pub struct AppData {
     pub descriptor_pool: vk::DescriptorPool,
     pub descriptor_sets: Vec<vk::DescriptorSet>,
     pub queue_family_indicies: QueueFamilyIndices,
+    pub mip_levels: u32,
     pub texture_image: vk::Image,
     pub texture_image_memory: vk::DeviceMemory,
     pub texture_image_view: vk::ImageView,
@@ -217,13 +218,11 @@ impl App {
         let time = self.start.elapsed().as_secs_f32();
 
 
-        let mut model = glm::rotate(
-            &glm::identity(),
-            time * glm::radians(&glm::vec1(90.0))[0],
-            &glm::vec3(1.0, 1.0, 0.0),
-        );
+        let model = glm::rotate(
+            &glm::identity(), 
+            time * glm::radians(&glm::vec1(90.0))[0], 
+            &glm::vec3(0.0, 0.0, 1.0));
 
-        model = translate(&glm::identity(), &glm::vec3(0.0, 0.0, (time * 5.0).sin())) * model;
 
         let view = glm::look_at(
             &glm::vec3(2.0, 2.0, 2.0),

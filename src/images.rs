@@ -11,6 +11,7 @@ pub unsafe fn create_image_view(image: &vk::Image,
     device: &Device,
     format: vk::Format, 
     subresource: vk::ImageSubresourceRange,
+    
     ) -> Result<vk::ImageView> {
 
     let info = vk::ImageViewCreateInfo::builder()
@@ -59,6 +60,9 @@ pub unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &
     let (width, height) = reader.info().size();
 
 
+    data.mip_levels = (width.max(height) as f32).log2().floor() as u32 + 1;
+
+
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         size, 
         vk::BufferUsageFlags::TRANSFER_SRC, 
@@ -82,12 +86,21 @@ pub unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &
         data, 
         width, 
         height, 
-        vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST,
-    vk::Format::R8G8B8A8_SRGB)?;
+        vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST | 
+        vk::ImageUsageFlags::TRANSFER_SRC,
+    vk::Format::R8G8B8A8_SRGB,
+        data.mip_levels)?;
     
     device.bind_image_memory(image, image_memory, 0)?;
 
-    transition_image_layout(device, data, image, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL)?;
+    transition_image_layout(
+        device, 
+        data, 
+        image, 
+        vk::ImageLayout::UNDEFINED, 
+        vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+        data.mip_levels
+    )?;
 
 
     copy_buffer_to_image(device, data, staging_buffer, image, width, height)?;
@@ -95,11 +108,43 @@ pub unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &
     device.destroy_buffer(staging_buffer, None);
     device.free_memory(staging_buffer_memory, None);
 
-    transition_image_layout(device, data, image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)?;
+    
 
 
     data.texture_image = image;
     data.texture_image_memory = image_memory;
+
+
+    return Ok(());
+}
+
+
+pub unsafe fn generate_mipmaps(
+    instance: &Instance, 
+    device: &Device,
+    data: &AppData,
+    image: &vk::Image,
+    width: u32,
+    height: u32,
+    mip_levels: u32
+) -> Result<()> {
+
+    let command_buffer = begin_single_time_commands(device, data)?;
+
+    let subresource = vk::ImageSubresourceRange::builder()
+        .aspect_mask(vk::ImageAspectFlags::COLOR)
+        .base_array_layer(0)
+        .layer_count(1)
+        .level_count(1);
+
+
+    let mut barrier = vk::ImageMemoryBarrier::builder()
+        .image(*image)
+        .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+        .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+        .subresource_range(subresource);
+
+    
 
 
     return Ok(());
@@ -112,7 +157,7 @@ pub unsafe fn create_texture_image_view(device: &Device, data: &mut AppData) -> 
     let subresource = vk::ImageSubresourceRange::builder()
         .aspect_mask(vk::ImageAspectFlags::COLOR)
         .base_mip_level(0)
-        .level_count(1)
+        .level_count(data.mip_levels)
         .base_array_layer(0)
         .layer_count(1).build();
 
@@ -157,7 +202,8 @@ pub unsafe fn transition_image_layout(
     data: &AppData,
     image: vk::Image,
     old_layout: vk::ImageLayout,
-    new_layout: vk::ImageLayout
+    new_layout: vk::ImageLayout,
+    mip_levels: u32
 ) -> Result<()> {
     
     let (src_access_mask, dst_access_mask, src_stage_mask, dst_stage_mask) = match (old_layout, new_layout) {
@@ -180,7 +226,7 @@ pub unsafe fn transition_image_layout(
     let subresource = vk::ImageSubresourceRange::builder()
         .aspect_mask(vk::ImageAspectFlags::COLOR)
         .base_mip_level(0)
-        .level_count(1)
+        .level_count(mip_levels)
         .base_array_layer(0)
         .layer_count(1);
 
@@ -224,7 +270,7 @@ pub unsafe fn copy_buffer_to_image(
     src: vk::Buffer,
     dst: vk::Image,
     width: u32,
-    height: u32,
+    height: u32
  ) -> Result<()> {
 
     let command_buffer = begin_single_time_commands(device, data)?;
@@ -258,7 +304,14 @@ pub unsafe fn copy_buffer_to_image(
     return Ok(());
 }
 
-pub unsafe fn create_image(instance: &Instance, device: &Device, data: &mut AppData, width: u32, height: u32, usage: vk::ImageUsageFlags, format: vk::Format) -> Result<(vk::Image, vk::DeviceMemory)> {
+pub unsafe fn create_image(instance: &Instance, 
+    device: &Device, 
+    data: &mut AppData, 
+    width: u32, 
+    height: u32, 
+    usage: vk::ImageUsageFlags, 
+    format: vk::Format,
+    mip_levels: u32) -> Result<(vk::Image, vk::DeviceMemory)> {
 
 
 
@@ -268,7 +321,7 @@ pub unsafe fn create_image(instance: &Instance, device: &Device, data: &mut AppD
     .image_type(vk::ImageType::_2D)
     .format(format)
     .extent(vk::Extent3D {width, height, depth: 1})
-    .mip_levels(1)
+    .mip_levels(mip_levels)
     .array_layers(1)
     .samples(vk::SampleCountFlags::_1)
     .tiling(vk::ImageTiling::OPTIMAL)
@@ -361,7 +414,8 @@ pub unsafe fn create_depth_buffer(
         data.swapchain_extent.width, 
         data.swapchain_extent.height, 
         vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT, 
-        format)?;
+        format,
+        1)?;
 
     device.bind_image_memory(depth_image, depth_image_memory, 0)?;
 

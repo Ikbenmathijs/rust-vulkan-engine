@@ -123,7 +123,7 @@ pub unsafe fn create_swapchain_image_views(data: &mut AppData, device: &Device) 
     let subresource = vk::ImageSubresourceRange::builder()
         .aspect_mask(vk::ImageAspectFlags::COLOR)
         .base_mip_level(0)
-        .level_count(1)
+        .level_count(data.mip_levels)
         .base_array_layer(0)
         .layer_count(1).build();
 
