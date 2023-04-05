@@ -144,7 +144,59 @@ pub unsafe fn generate_mipmaps(
         .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
         .subresource_range(subresource);
 
-    
+    let mut mip_width = width;
+    let mut mip_height = height;
+
+    for i in 1..mip_levels {
+        barrier.subresource_range.base_mip_level = i - 1;
+        barrier.old_layout = vk::ImageLayout::TRANSFER_DST_OPTIMAL;
+        barrier.new_layout = vk::ImageLayout::TRANSFER_SRC_OPTIMAL;
+        barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
+        barrier.dst_access_mask = vk::AccessFlags::TRANSFER_READ;
+
+
+        device.cmd_pipeline_barrier(command_buffer, 
+            vk::PipelineStageFlags::TRANSFER, 
+            vk::PipelineStageFlags::TRANSFER, 
+            vk::DependencyFlags::empty(), 
+            &[] as &[vk::MemoryBarrier], 
+            &[] as &[vk::BufferMemoryBarrier], 
+            &[barrier]);
+
+        
+        let src_subresource = vk::ImageSubresourceLayers::builder()
+            .aspect_mask(vk::ImageAspectFlags::COLOR)
+            .mip_level(i - 1)
+            .base_array_layer(0)
+            .layer_count(1);
+            
+        
+        let dst_subresource = vk::ImageSubresourceLayers::builder()
+            .aspect_mask(vk::ImageAspectFlags::COLOR)
+            .mip_level(i)
+            .base_array_layer(0)
+            .layer_count(1);
+
+
+
+        let blit = vk::ImageBlit::builder()
+            .src_offsets([
+                vk::Offset3D { x: 0, y: 0, z: 0 },
+                vk::Offset3D {
+                    x: mip_width as i32,
+                    y: mip_height as i32,
+                    z: 0
+                }
+            ])
+            .src_subresource(src_subresource)
+            .dst_offsets([
+                vk::Offset3D { x: 0, y: 0, z: 0 },
+                
+            ]);
+    }
+
+
+    end_single_time_commands(device, data, command_buffer)?;
 
 
     return Ok(());
