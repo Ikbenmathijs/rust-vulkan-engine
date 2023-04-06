@@ -84,10 +84,18 @@ impl App {
 
         data.queue_family_indicies = QueueFamilyIndices::get(&instance, &mut data, None)?;
 
+        create_command_pools(&device, &instance, &mut data)?;
+
+
+        create_texture_image(&instance, &device, &mut data)?;
+        create_texture_image_view(&device, &mut data)?;
+        create_texture_sampler(&device, &mut data)?;
+
+
+
         create_swapchain(&instance, &mut data, &device, window)?;
         create_swapchain_image_views(&mut data, &device)?;
 
-        create_command_pools(&device, &instance, &mut data)?;
 
         load_model(&mut data)?;
 
@@ -95,9 +103,7 @@ impl App {
         create_index_buffer(&instance, &device, &mut data)?;
 
 
-        create_texture_image(&instance, &device, &mut data)?;
-        create_texture_image_view(&device, &mut data)?;
-        create_texture_sampler(&device, &mut data)?;
+        
 
         create_depth_buffer(&instance, &device, &mut data)?;
 

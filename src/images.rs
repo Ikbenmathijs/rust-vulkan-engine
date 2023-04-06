@@ -108,6 +108,17 @@ pub unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &
     device.destroy_buffer(staging_buffer, None);
     device.free_memory(staging_buffer_memory, None);
 
+
+    generate_mipmaps(
+        instance, 
+        device, 
+        data, 
+        image, 
+        vk::Format::R8G8B8A8_SRGB,
+        width, 
+        height, 
+        data.mip_levels)?;
+
     
 
 
@@ -124,10 +135,20 @@ pub unsafe fn generate_mipmaps(
     device: &Device,
     data: &AppData,
     image: vk::Image,
+    format: vk::Format,
     width: u32,
     height: u32,
     mip_levels: u32
 ) -> Result<()> {
+
+
+    if !instance.get_physical_device_format_properties(data.physical_device, format)
+        .optimal_tiling_features
+        .contains(vk::FormatFeatureFlags::SAMPLED_IMAGE_FILTER_LINEAR) 
+    {
+        return Err(anyhow!("This device does not support linear blitting"));
+    }
+
 
     let command_buffer = begin_single_time_commands(device, data)?;
 
@@ -233,10 +254,22 @@ pub unsafe fn generate_mipmaps(
         if mip_height > 1 {
             mip_height /= 2;
         }
-
-
-        
     }
+
+    barrier.subresource_range.base_mip_level = mip_levels - 1;
+    barrier.old_layout = vk::ImageLayout::TRANSFER_DST_OPTIMAL;
+    barrier.new_layout = vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL;
+    barrier.src_access_mask = vk::AccessFlags::TRANSFER_WRITE;
+    barrier.dst_access_mask = vk::AccessFlags::SHADER_READ;
+
+    device.cmd_pipeline_barrier(
+        command_buffer, 
+        vk::PipelineStageFlags::TRANSFER, 
+        vk::PipelineStageFlags::FRAGMENT_SHADER, 
+        vk::DependencyFlags::empty(), 
+        &[] as &[vk::MemoryBarrier], 
+        &[] as &[vk::BufferMemoryBarrier], 
+        &[barrier]);
 
 
     end_single_time_commands(device, data, command_buffer)?;
@@ -281,7 +314,7 @@ pub unsafe fn create_texture_sampler(device: &Device, data: &mut AppData) -> Res
         .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
         .mip_lod_bias(0.0)
         .min_lod(0.0)
-        .max_lod(0.0);
+        .max_lod(data.mip_levels as f32);
 
 
     data.texture_image_sampler = device.create_sampler(&create_info, None)?;
