@@ -123,7 +123,7 @@ pub unsafe fn generate_mipmaps(
     instance: &Instance, 
     device: &Device,
     data: &AppData,
-    image: &vk::Image,
+    image: vk::Image,
     width: u32,
     height: u32,
     mip_levels: u32
@@ -139,7 +139,7 @@ pub unsafe fn generate_mipmaps(
 
 
     let mut barrier = vk::ImageMemoryBarrier::builder()
-        .image(*image)
+        .image(image)
         .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
         .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
         .subresource_range(subresource);
@@ -185,14 +185,57 @@ pub unsafe fn generate_mipmaps(
                 vk::Offset3D {
                     x: mip_width as i32,
                     y: mip_height as i32,
-                    z: 0
+                    z: 1
                 }
             ])
             .src_subresource(src_subresource)
             .dst_offsets([
                 vk::Offset3D { x: 0, y: 0, z: 0 },
-                
-            ]);
+                vk::Offset3D {
+                    x: (if mip_width > 1 { mip_width / 2 } else { 1 }) as i32,
+                    y: (if mip_height > 1 { mip_height / 2 } else { 1 }) as i32,
+                    z: 1
+                }
+            ])
+            .dst_subresource(dst_subresource);
+
+
+        device.cmd_blit_image(
+            command_buffer, 
+            image, 
+            vk::ImageLayout::TRANSFER_SRC_OPTIMAL, 
+            image, 
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL, 
+            &[blit], 
+            vk::Filter::LINEAR);
+
+        
+        barrier.old_layout = vk::ImageLayout::TRANSFER_SRC_OPTIMAL;
+        barrier.new_layout = vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL;
+        barrier.src_access_mask = vk::AccessFlags::TRANSFER_READ;
+        barrier.dst_access_mask =   vk::AccessFlags::SHADER_READ;
+
+
+        device.cmd_pipeline_barrier(
+            command_buffer, 
+            vk::PipelineStageFlags::TRANSFER, 
+            vk::PipelineStageFlags::FRAGMENT_SHADER, 
+            vk::DependencyFlags::empty(), 
+            &[] as &[vk::MemoryBarrier], 
+            &[] as &[vk::BufferMemoryBarrier], 
+            &[barrier]);
+
+        
+        if mip_width > 1 {
+            mip_width /= 2;
+        }
+        
+        if mip_height > 1 {
+            mip_height /= 2;
+        }
+
+
+        
     }
 
 
