@@ -18,6 +18,7 @@ use crate::descriptors::{create_descriptor_pool, create_descriptor_sets, create_
 pub struct AppData {
     pub messenger: DebugUtilsMessengerEXT,
     pub physical_device: vk::PhysicalDevice,
+    pub msaa_samples: vk::SampleCountFlags,
     pub surface: vk::SurfaceKHR,
     pub swapchain: vk::SwapchainKHR,
     pub swapchain_images: Vec<vk::Image>,
