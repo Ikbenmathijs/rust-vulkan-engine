@@ -8,7 +8,7 @@ use crate::app::AppData;
 const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name];
 
 
-pub unsafe fn pick_physical_device(instance: &Instance, data: &AppData) -> Result<vk::PhysicalDevice> {
+pub unsafe fn pick_physical_device(instance: &Instance, data: &mut AppData) -> Result<()> {
 
     let devices = instance.enumerate_physical_devices().unwrap();
 
@@ -25,7 +25,9 @@ pub unsafe fn pick_physical_device(instance: &Instance, data: &AppData) -> Resul
         }
 
         info!("Picked device: {}", props.device_name);
-        return Ok(physical_device);
+        data.physical_device = physical_device;
+        data.msaa_samples = get_max_msaa_samples(instance, data);
+        return Ok(());
     }
     return Err(anyhow!("No suitable physical device could be found."));
 }

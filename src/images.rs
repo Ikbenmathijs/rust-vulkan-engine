@@ -89,7 +89,9 @@ pub unsafe fn create_texture_image(instance: &Instance, device: &Device, data: &
         vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST | 
         vk::ImageUsageFlags::TRANSFER_SRC,
     vk::Format::R8G8B8A8_SRGB,
-        data.mip_levels)?;
+        data.mip_levels,
+        vk::SampleCountFlags::_1
+        )?;
     
     device.bind_image_memory(image, image_memory, 0)?;
 
@@ -439,7 +441,9 @@ pub unsafe fn create_image(instance: &Instance,
     height: u32, 
     usage: vk::ImageUsageFlags, 
     format: vk::Format,
-    mip_levels: u32) -> Result<(vk::Image, vk::DeviceMemory)> {
+    mip_levels: u32,
+    samples: vk::SampleCountFlags
+) -> Result<(vk::Image, vk::DeviceMemory)> {
 
 
 
@@ -451,7 +455,7 @@ pub unsafe fn create_image(instance: &Instance,
     .extent(vk::Extent3D {width, height, depth: 1})
     .mip_levels(mip_levels)
     .array_layers(1)
-    .samples(vk::SampleCountFlags::_1)
+    .samples(samples)
     .tiling(vk::ImageTiling::OPTIMAL)
     .usage(usage)
     .sharing_mode(vk::SharingMode::EXCLUSIVE)
@@ -543,7 +547,9 @@ pub unsafe fn create_depth_buffer(
         data.swapchain_extent.height, 
         vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT, 
         format,
-        1)?;
+        1,
+        vk::SampleCountFlags::_1
+    )?;
 
     device.bind_image_memory(depth_image, depth_image_memory, 0)?;
 
@@ -561,9 +567,47 @@ pub unsafe fn create_depth_buffer(
 
     data.depth_image_view = create_image_view(&data.depth_image, device, format, subresource)?;
 
+    return Ok(());
+}
 
 
 
+pub unsafe fn create_color_buffer(
+    instance: &Instance,
+    device: &Device,
+    data: &mut AppData
+) -> Result<()> {
+    
+    let (color_image, color_image_memory) = create_image(
+        instance, 
+        device, 
+        data, 
+        data.swapchain_extent.height, 
+        data.swapchain_extent.height, 
+        vk::ImageUsageFlags::COLOR_ATTACHMENT |
+        vk::ImageUsageFlags::TRANSIENT_ATTACHMENT, 
+        data.swapchain_image_format, 
+        1, 
+        data.msaa_samples)?;
 
+    data.color_image = color_image;
+    data.color_image_memory = color_image_memory;
+
+
+
+    let subresource_range = vk::ImageSubresourceRange::builder()
+        .aspect_mask(vk::ImageAspectFlags::COLOR)
+        .base_mip_level(0)
+        .level_count(1)
+        .base_array_layer(0)
+        .layer_count(1).build();
+
+
+    data.color_image_view = create_image_view(
+        &color_image, 
+        device, 
+        data.swapchain_image_format, 
+        subresource_range)?;
+    
     return Ok(());
 }

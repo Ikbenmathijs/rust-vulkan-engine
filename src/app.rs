@@ -3,7 +3,7 @@ use vulkanalia::{loader::{LibloadingLoader, LIBRARY}, vk::{DebugUtilsMessengerEX
 use winit::window::{Window};
 use anyhow::{Result, anyhow};
 use vulkanalia::prelude::v1_0::*;
-use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer, Vertex, load_model}, ubo::{ create_uniform_buffers, MVP_UBO}, images::{create_texture_image, create_texture_image_view, create_texture_sampler, create_depth_buffer}};
+use crate::{instance::create_instance, device::{pick_physical_device, create_logical_device, QueueFamilyIndices}, swapchain::{create_swapchain, create_swapchain_image_views}, pipeline::create_pipeline, buffers::{create_framebuffers, create_command_pools, create_command_buffers}, sync::{create_semaphore, create_fence}, render_pass::create_render_pass, vertex::{create_vertex_buffer, create_index_buffer, Vertex, load_model}, ubo::{ create_uniform_buffers, MVP_UBO}, images::{create_texture_image, create_texture_image_view, create_texture_sampler, create_depth_buffer, create_color_buffer}};
 use log::*;
 use vulkanalia::window as vkWindow;
 use std::time::Instant;
@@ -30,6 +30,9 @@ pub struct AppData {
     pub render_pass: vk::RenderPass,
     pub pipeline: vk::Pipeline,
     pub framebuffers: Vec<vk::Framebuffer>,
+    pub color_image: vk::Image,
+    pub color_image_memory: vk::DeviceMemory,
+    pub color_image_view: vk::ImageView,
     pub command_pool: vk::CommandPool,
     pub transient_command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
@@ -79,7 +82,7 @@ impl App {
         let mut data = AppData::default();
         let instance = create_instance(window, &entry, &mut data)?;
         data.surface = vkWindow::create_surface(&instance, window)?;
-        data.physical_device = pick_physical_device(&instance, &data)?;
+        pick_physical_device(&instance, &mut data)?;
         let device = create_logical_device(&instance, &mut data)?;
 
 
@@ -105,7 +108,7 @@ impl App {
 
 
         
-
+        create_color_buffer(&instance, &device, &mut data)?;
         create_depth_buffer(&instance, &device, &mut data)?;
 
         create_descriptor_set_layout(&device, &mut data)?;
@@ -268,10 +271,19 @@ impl App {
 
     pub unsafe fn destroy_swapchain(&mut self) {
 
+
+        self.device.destroy_image(self.data.color_image, None);
+        self.device.free_memory(self.data.color_image_memory, None);
+        self.device.destroy_image_view(self.data.color_image_view, None);
+        debug!("Destroyed color buffer!");
+
         self.device.destroy_image(self.data.depth_image, None);
         self.device.free_memory(self.data.depth_image_memory, None);
         self.device.destroy_image_view(self.data.depth_image_view, None);
         debug!("Destroyed depth buffer");
+
+
+
 
 
 
@@ -326,6 +338,7 @@ impl App {
         create_swapchain(&self.instance, &mut self.data, &self.device, window)?;
         create_swapchain_image_views(&mut self.data, &self.device)?;
 
+        create_color_buffer(&self.instance, &self.device, &mut self.data)?;
         create_depth_buffer(&self.instance, &self.device, &mut self.data)?;
 
         create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
