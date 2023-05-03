@@ -27,6 +27,7 @@ pub unsafe fn pick_physical_device(instance: &Instance, data: &mut AppData) -> R
         info!("Picked device: {}", props.device_name);
         data.physical_device = physical_device;
         data.msaa_samples = get_max_msaa_samples(instance, data);
+        debug!("MSAA samples: {:?}", data.msaa_samples);
         return Ok(());
     }
     return Err(anyhow!("No suitable physical device could be found."));

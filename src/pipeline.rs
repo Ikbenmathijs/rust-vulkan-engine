@@ -72,7 +72,7 @@ pub unsafe fn create_pipeline(instance: &Instance, data: &mut AppData, device: &
 
     let multi_sample_state = vk::PipelineMultisampleStateCreateInfo::builder()
         .sample_shading_enable(false)
-        .rasterization_samples(vk::SampleCountFlags::_1);
+        .rasterization_samples(data.msaa_samples);
 
     let attachment = vk::PipelineColorBlendAttachmentState::builder()
         .blend_enable(false)

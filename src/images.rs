@@ -548,7 +548,7 @@ pub unsafe fn create_depth_buffer(
         vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT, 
         format,
         1,
-        vk::SampleCountFlags::_1
+        data.msaa_samples
     )?;
 
     device.bind_image_memory(depth_image, depth_image_memory, 0)?;
@@ -582,16 +582,19 @@ pub unsafe fn create_color_buffer(
         instance, 
         device, 
         data, 
-        data.swapchain_extent.height, 
+        data.swapchain_extent.width, 
         data.swapchain_extent.height, 
         vk::ImageUsageFlags::COLOR_ATTACHMENT |
         vk::ImageUsageFlags::TRANSIENT_ATTACHMENT, 
         data.swapchain_image_format, 
         1, 
         data.msaa_samples)?;
+    
 
     data.color_image = color_image;
     data.color_image_memory = color_image_memory;
+
+    device.bind_image_memory(data.color_image, data.color_image_memory, 0)?;
 
 
 

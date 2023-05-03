@@ -19,6 +19,7 @@ mod vertex;
 mod ubo;
 mod descriptors;
 
+
 fn main() -> Result<()> {
     pretty_env_logger::init();
 
@@ -28,17 +29,26 @@ fn main() -> Result<()> {
 
     let mut destroying = false;
     let mut app = unsafe {App::Create(&window)}.unwrap();
+    let mut minimized = false;
 
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_poll();
 
         match event {
-            Event::MainEventsCleared if !destroying => unsafe {app.render(&window)}.unwrap(),
+            Event::MainEventsCleared if !destroying && !minimized => unsafe {app.render(&window)}.unwrap(),
             
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 destroying = true;
                 control_flow.set_exit();
                 unsafe {app.destroy();};
+            },
+
+            Event::WindowEvent { event: WindowEvent::Resized(size), .. } => {
+                if size.height == 0 || size.width == 0 {
+                    minimized = true;
+                } else {
+                    minimized = false;
+                }
             },
 
             _ => {}

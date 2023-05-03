@@ -10,7 +10,9 @@ use crate::device::QueueFamilyIndices;
 pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result<()> {
     
     data.framebuffers = data.swapchain_image_views.iter().map(|i| {
-        let attachments = &[*i, data.depth_image_view];
+        let attachments = &[data.color_image_view, data.depth_image_view, *i];
+
+
 
         let framebuffer_info = vk::FramebufferCreateInfo::builder()
             .render_pass(data.render_pass)
@@ -226,7 +228,6 @@ pub unsafe fn end_single_time_commands(device: &Device, data: &AppData, command_
 }
 
 
-
 pub unsafe fn get_memory_type_index(
     instance: &Instance,
     data: &AppData,
@@ -238,7 +239,7 @@ pub unsafe fn get_memory_type_index(
     for (i, memtype) in memory_props.memory_types.iter().enumerate() {
         if memtype.property_flags.contains(properties) && (requirements.memory_type_bits & (1 << i) != 0) {
             index = Some(i as u32);
-            debug!("\tFound memory type index: {}", i);
+            debug!("\tFound memory type index: {}", i); 
             break;
         }
     }
