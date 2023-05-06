@@ -33,7 +33,7 @@ pub struct AppData {
     pub color_image: vk::Image,
     pub color_image_memory: vk::DeviceMemory,
     pub color_image_view: vk::ImageView,
-    pub command_pool: vk::CommandPool,
+    pub command_pools: Vec<vk::CommandPool>,
     pub transient_command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
     pub image_available_semaphores: Vec<vk::Semaphore>,
@@ -88,7 +88,12 @@ impl App {
 
         data.queue_family_indicies = QueueFamilyIndices::get(&instance, &mut data, None)?;
 
-        create_command_pools(&device, &instance, &mut data)?;
+
+        create_swapchain(&instance, &mut data, &device, window)?;
+        create_swapchain_image_views(&mut data, &device)?;
+
+
+        create_command_pools(&device, &mut data)?;
 
 
         create_texture_image(&instance, &device, &mut data)?;
@@ -96,9 +101,7 @@ impl App {
         create_texture_sampler(&device, &mut data)?;
 
 
-
-        create_swapchain(&instance, &mut data, &device, window)?;
-        create_swapchain_image_views(&mut data, &device)?;
+        
 
 
         load_model(&mut data)?;
@@ -119,6 +122,7 @@ impl App {
 
         create_pipeline(&instance, &mut data, &device)?;
         create_framebuffers(&mut data, &device)?;
+
 
 
         create_command_buffers(&device, &mut data)?;
@@ -177,6 +181,7 @@ impl App {
 
 
         self.update_uniform_buffers(image_index)?;
+        self.update_command_buffers(image_index)?;
 
         let wait_semaphores = &[self.data.image_available_semaphores[self.frame]];
         let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -221,6 +226,83 @@ impl App {
     }
 
 
+    pub unsafe fn update_command_buffers(&self, image_index: usize) -> Result<()> {
+
+        let command_pool = self.data.command_pools[image_index];
+        self.device.reset_command_pool(command_pool, vk::CommandPoolResetFlags::empty())?;
+
+        let command_buffer = self.data.command_buffers[image_index];
+
+
+        let time = self.start.elapsed().as_secs_f32();
+
+        let model = glm::rotate(&glm::identity(), glm::radians(&glm::vec1(90.0))[0] * time, &glm::vec3(0.0, 0.0, 1.0));
+        let (_, model_bytes, _) = model.as_slice().align_to::<u8>();
+
+
+            
+        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder();
+
+        self.device.begin_command_buffer(command_buffer, &command_buffer_begin_info)?;
+
+        let render_area = vk::Rect2D {
+            offset: vk::Offset2D {x: 0, y: 0}, 
+            extent: vk::Extent2D {width: self.data.swapchain_extent.width, height: self.data.swapchain_extent.height}};
+        
+        let clear_value = vk::ClearValue {
+            color: vk::ClearColorValue {
+                float32: [0.0, 0.0, 0.0, 1.0]
+            }
+        };
+
+        let depth_clear_value = vk::ClearValue {
+            depth_stencil: vk::ClearDepthStencilValue {
+                depth: 1.0,
+                stencil: 0
+            }
+        };
+
+        let clear_values = &[clear_value, depth_clear_value];
+
+        let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+            .render_pass(self.data.render_pass)
+            .framebuffer(self.data.framebuffers[image_index])
+            .render_area(render_area)
+            .clear_values(clear_values);
+
+        self.device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+        self.device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.data.pipeline);
+
+        self.device.cmd_bind_vertex_buffers(command_buffer, 0, &[self.data.vertex_buffer], &[0]);
+        self.device.cmd_bind_index_buffer(command_buffer, self.data.index_buffer, 0, vk::IndexType::UINT32);
+        
+
+        self.device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.data.pipeline_layout, 0, &[self.data.descriptor_sets[image_index]], &[]);
+
+        self.device.cmd_push_constants(
+            command_buffer, 
+            self.data.pipeline_layout, 
+            vk::ShaderStageFlags::VERTEX, 
+            0, 
+            model_bytes
+        );
+
+        self.device.cmd_push_constants(
+            command_buffer, 
+            self.data.pipeline_layout, 
+            vk::ShaderStageFlags::FRAGMENT, 
+            64, 
+            &0.25f32.to_ne_bytes()[..]
+        );
+
+        self.device.cmd_draw_indexed(command_buffer, self.data.indicies.len() as u32, 1, 0, 0, 0);
+        self.device.cmd_end_render_pass(command_buffer);
+
+        self.device.end_command_buffer(command_buffer)?;
+
+        return Ok(());
+    }
+
 
     pub unsafe fn update_uniform_buffers(&self, image_index: usize) -> Result<()> {
 
@@ -228,10 +310,7 @@ impl App {
         let time = self.start.elapsed().as_secs_f32();
 
 
-        let model = glm::rotate(
-            &glm::identity(), 
-            time * glm::radians(&glm::vec1(90.0))[0], 
-            &glm::vec3(0.0, 0.0, 1.0));
+        
 
 
         let view = glm::look_at(
@@ -249,7 +328,7 @@ impl App {
 
         proj[(1, 1)] *= -1.0;
 
-        let ubo = MVP_UBO { model, view, proj };
+        let ubo = MVP_UBO { view, proj };
 
         // Copy
 
@@ -291,12 +370,16 @@ impl App {
         debug!("Destroyed frame buffers");
 
 
-        self.data.command_buffers.iter().for_each(|b| self.device.free_command_buffers(
-            self.data.command_pool, &[*b]));
-        debug!("Destroyed command buffers");
+   
+        self.data.command_pools.iter().for_each(|p| 
+            self.device.destroy_command_pool(*p, None)
+        );
+
+        self.data.command_pools = vec![] as Vec<vk::CommandPool>;
+        self.data.command_buffers = vec![] as Vec<vk::CommandBuffer>;
+
         
         
-        self.device.destroy_command_pool(self.data.command_pool, None);
         self.device.destroy_command_pool(self.data.transient_command_pool, None);
         debug!("Destroyed command pools");
 
@@ -338,6 +421,9 @@ impl App {
         create_swapchain(&self.instance, &mut self.data, &self.device, window)?;
         create_swapchain_image_views(&mut self.data, &self.device)?;
 
+        create_command_pools(&self.device, &mut self.data)?;
+        create_command_buffers(&self.device, &mut self.data)?;
+
         create_color_buffer(&self.instance, &self.device, &mut self.data)?;
         create_depth_buffer(&self.instance, &self.device, &mut self.data)?;
 
@@ -352,11 +438,7 @@ impl App {
 
 
         create_framebuffers(&mut self.data, &self.device)?;
-        create_command_pools(&self.device, &self.instance, &mut self.data)?;
-        create_command_buffers(&self.device, &mut self.data)?;
-
         
-
 
         
         info!("Swapchain & related objects have been re-created!");

@@ -2,6 +2,8 @@ use vulkanalia::prelude::v1_0::*;
 use log::*;
 use anyhow::{Result, anyhow};
 use std::ptr::copy_nonoverlapping as memcpy;
+use nalgebra_glm as glm;
+
 
 use crate::app::AppData;
 use crate::device::QueueFamilyIndices;
@@ -31,17 +33,19 @@ pub unsafe fn create_framebuffers(data: &mut AppData, device: &Device) -> Result
 
 
 
-pub unsafe fn create_command_pools(device: &Device, instance: &Instance, data: &mut AppData) -> Result<()> {
-    let indicies = QueueFamilyIndices::get(instance, data, Some(&data.physical_device))?;
-
-    let command_pool_info = vk::CommandPoolCreateInfo::builder()
-        .queue_family_index(indicies.graphics);
+pub unsafe fn create_command_pools(device: &Device, data: &mut AppData) -> Result<()> {
 
     let transient_command_pool_info = vk::CommandPoolCreateInfo::builder()
-        .queue_family_index(indicies.graphics);
+        .flags(vk::CommandPoolCreateFlags::TRANSIENT)
+        .queue_family_index(data.queue_family_indicies.graphics);
 
-    data.command_pool = device.create_command_pool(&command_pool_info, None)?;
-    data.transient_command_pool = device.create_command_pool(&transient_command_pool_info, None)?;
+        data.transient_command_pool = device.create_command_pool(&transient_command_pool_info, None)?;
+
+
+
+    for _ in 0..data.swapchain_images.len() {
+        data.command_pools.push(create_command_pool(device, data)?);
+    }
 
     debug!("Created command pools!");
 
@@ -49,63 +53,31 @@ pub unsafe fn create_command_pools(device: &Device, instance: &Instance, data: &
 }
 
 
+unsafe fn create_command_pool(device: &Device, data: &AppData) -> Result<vk::CommandPool> {
+
+    let info = vk::CommandPoolCreateInfo::builder()
+        .flags(vk::CommandPoolCreateFlags::TRANSIENT)
+        .queue_family_index(data.queue_family_indicies.graphics);
+
+    return Ok(device.create_command_pool(&info, None)?);
+}
+
+
 pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Result<()> {
 
 
-    let allocate_info = vk::CommandBufferAllocateInfo::builder()
-        .command_pool(data.command_pool)
+    for i in 0..data.swapchain_images.len() {
+        println!("{:?}", data.command_pools);
+
+        let allocate_info = vk::CommandBufferAllocateInfo::builder()
+        .command_pool(data.command_pools[i])
         .level(vk::CommandBufferLevel::PRIMARY)
         .command_buffer_count(data.framebuffers.len() as u32);
 
-    data.command_buffers = device.allocate_command_buffers(&allocate_info)?;
-
-    for (i, command_buffer) in data.command_buffers.iter().enumerate() {
-        
-        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder();
-
-        device.begin_command_buffer(*command_buffer, &command_buffer_begin_info)?;
-
-        let render_area = vk::Rect2D {
-            offset: vk::Offset2D {x: 0, y: 0}, 
-            extent: vk::Extent2D {width: data.swapchain_extent.width, height: data.swapchain_extent.height}};
-        
-        let clear_value = vk::ClearValue {
-            color: vk::ClearColorValue {
-                float32: [0.0, 0.0, 0.0, 1.0]
-            }
-        };
-
-        let depth_clear_value = vk::ClearValue {
-            depth_stencil: vk::ClearDepthStencilValue {
-                depth: 1.0,
-                stencil: 0
-            }
-        };
-
-        let clear_values = &[clear_value, depth_clear_value];
-
-        let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-            .render_pass(data.render_pass)
-            .framebuffer(data.framebuffers[i])
-            .render_area(render_area)
-            .clear_values(clear_values);
-
-        device.cmd_begin_render_pass(*command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
-        device.cmd_bind_pipeline(*command_buffer, vk::PipelineBindPoint::GRAPHICS, data.pipeline);
-
-        device.cmd_bind_vertex_buffers(*command_buffer, 0, &[data.vertex_buffer], &[0]);
-        device.cmd_bind_index_buffer(*command_buffer, data.index_buffer, 0, vk::IndexType::UINT32);
-        
-
-        device.cmd_bind_descriptor_sets(*command_buffer, vk::PipelineBindPoint::GRAPHICS, data.pipeline_layout, 0, &[data.descriptor_sets[i]], &[]);
-
-        device.cmd_draw_indexed(*command_buffer, data.indicies.len() as u32, 1, 0, 0, 0);
-        device.cmd_end_render_pass(*command_buffer);
-
-        device.end_command_buffer(*command_buffer)?;
-        debug!("Created command buffer with index: {}", i);
-
+        data.command_buffers.push(device.allocate_command_buffers(&allocate_info)?[0]);
     }
+
+
 
     return Ok(());
 }

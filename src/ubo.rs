@@ -12,15 +12,9 @@ use crate::{app::AppData, buffers::create_buffer};
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct MVP_UBO {
-    pub model: glm::Mat4,
     pub view: glm::Mat4,
     pub proj: glm::Mat4
 }
-
-
-
-
-
 
 
 
