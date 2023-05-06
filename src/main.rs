@@ -2,8 +2,10 @@ use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
+use winit::event::{ElementState, VirtualKeyCode};
 use anyhow::Result;
 use app::App;
+
 
 
 mod app;
@@ -50,6 +52,16 @@ fn main() -> Result<()> {
                     minimized = false;
                 }
             },
+
+            Event::WindowEvent {event: WindowEvent::KeyboardInput { input, .. } , ..} => {
+                if input.state == ElementState::Pressed {
+                    match input.virtual_keycode {
+                        Some(VirtualKeyCode::Left) if app.models > 1 => app.models -= 1,
+                        Some(VirtualKeyCode::Right) if app.models < 4 => app.models += 1,
+                        _ => { }
+                    }
+                }
+            }
 
             _ => {}
         }

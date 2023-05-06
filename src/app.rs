@@ -72,7 +72,8 @@ pub struct App {
     data: AppData,
     device: Device,
     frame: usize,
-    start: Instant
+    start: Instant,
+    pub models: usize
 }
 
 
@@ -143,7 +144,7 @@ impl App {
 
 
 
-        return Ok(Self {entry, instance, data, device, frame: 0, start: Instant::now()});
+        return Ok(Self {entry, instance, data, device, frame: 0, start: Instant::now(), models: 4});
     }
 
     pub unsafe fn render(&mut self, window: &Window) -> Result<()> {
@@ -182,7 +183,7 @@ impl App {
 
 
         self.update_uniform_buffers(image_index)?;
-        self.update_command_buffers(image_index)?;
+        self.update_command_buffer(image_index)?;
 
         let wait_semaphores = &[self.data.image_available_semaphores[self.frame]];
         let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -227,7 +228,7 @@ impl App {
     }
 
 
-    unsafe fn update_command_buffers(&mut self, image_index: usize) -> Result<()> {
+    unsafe fn update_command_buffer(&mut self, image_index: usize) -> Result<()> {
 
         let command_pool = self.data.command_pools[image_index];
         self.device.reset_command_pool(command_pool, vk::CommandPoolResetFlags::empty())?;
@@ -267,8 +268,11 @@ impl App {
 
         self.device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::SECONDARY_COMMAND_BUFFERS);
        
-        let secondary_command_buffer = self.update_secondary_command_buffer(image_index, 0)?;
-        self.device.cmd_execute_commands(command_buffer, &[secondary_command_buffer]);
+        let secondary_command_buffers = (0..self.models)
+            .map(|i| self.update_secondary_command_buffer(image_index, i))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.device.cmd_execute_commands(command_buffer, &secondary_command_buffers);
 
         self.device.cmd_end_render_pass(command_buffer);
         self.device.end_command_buffer(command_buffer)?;
@@ -315,9 +319,22 @@ impl App {
 
         self.device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.data.pipeline_layout, 0, &[self.data.descriptor_sets[image_index]], &[]);
 
+       let y = (((model_index % 2) as f32) * 2.5) - 1.25;
+        let z = (((model_index / 2) as f32) * -2.0) + 1.0;
+
+        let model = glm::translate(
+            &glm::identity(),
+            &glm::vec3(0.0, y, z),
+        );
+
         let time = self.start.elapsed().as_secs_f32();
 
-        let model = glm::rotate(&glm::identity(), glm::radians(&glm::vec1(90.0))[0] * time, &glm::vec3(0.0, 0.0, 1.0));
+        let model = glm::rotate(
+            &model,
+            time * glm::radians(&glm::vec1(90.0))[0],
+            &glm::vec3(0.0, 0.0, 1.0),
+        );
+        
         let (_, model_bytes, _) = model.as_slice().align_to::<u8>();
 
 
@@ -352,14 +369,8 @@ impl App {
     unsafe fn update_uniform_buffers(&self, image_index: usize) -> Result<()> {
 
 
-        let time = self.start.elapsed().as_secs_f32();
-
-
-        
-
-
         let view = glm::look_at(
-            &glm::vec3(2.0, 2.0, 2.0),
+            &glm::vec3(6.0, 0.0, 2.0),
             &glm::vec3(0.0, 0.0, 0.0),
             &glm::vec3(0.0, 0.0, 1.0),
         );
