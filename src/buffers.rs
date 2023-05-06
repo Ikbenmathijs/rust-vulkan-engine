@@ -67,7 +67,6 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
 
 
     for i in 0..data.swapchain_images.len() {
-        println!("{:?}", data.command_pools);
 
         let allocate_info = vk::CommandBufferAllocateInfo::builder()
         .command_pool(data.command_pools[i])
@@ -77,7 +76,7 @@ pub unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Res
         data.command_buffers.push(device.allocate_command_buffers(&allocate_info)?[0]);
     }
 
-
+    data.secondary_command_buffers = vec![vec![]; data.swapchain_images.len()];
 
     return Ok(());
 }

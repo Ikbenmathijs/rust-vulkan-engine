@@ -14,7 +14,7 @@ use crate::descriptors::{create_descriptor_pool, create_descriptor_sets, create_
 
 
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct AppData {
     pub messenger: DebugUtilsMessengerEXT,
     pub physical_device: vk::PhysicalDevice,
@@ -36,6 +36,7 @@ pub struct AppData {
     pub command_pools: Vec<vk::CommandPool>,
     pub transient_command_pool: vk::CommandPool,
     pub command_buffers: Vec<vk::CommandBuffer>,
+    pub secondary_command_buffers: Vec<Vec<vk::CommandBuffer>>,
     pub image_available_semaphores: Vec<vk::Semaphore>,
     pub render_finished_semaphores: Vec<vk::Semaphore>,
     pub graphics_queue: vk::Queue,
@@ -64,7 +65,7 @@ pub struct AppData {
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct App {
     entry: Entry,
     instance: Instance,
@@ -226,20 +227,12 @@ impl App {
     }
 
 
-    pub unsafe fn update_command_buffers(&self, image_index: usize) -> Result<()> {
+    unsafe fn update_command_buffers(&mut self, image_index: usize) -> Result<()> {
 
         let command_pool = self.data.command_pools[image_index];
         self.device.reset_command_pool(command_pool, vk::CommandPoolResetFlags::empty())?;
 
         let command_buffer = self.data.command_buffers[image_index];
-
-
-        let time = self.start.elapsed().as_secs_f32();
-
-        let model = glm::rotate(&glm::identity(), glm::radians(&glm::vec1(90.0))[0] * time, &glm::vec3(0.0, 0.0, 1.0));
-        let (_, model_bytes, _) = model.as_slice().align_to::<u8>();
-
-
             
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder();
 
@@ -270,7 +263,50 @@ impl App {
             .render_area(render_area)
             .clear_values(clear_values);
 
-        self.device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+
+
+        self.device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::SECONDARY_COMMAND_BUFFERS);
+       
+        let secondary_command_buffer = self.update_secondary_command_buffer(image_index, 0)?;
+        self.device.cmd_execute_commands(command_buffer, &[secondary_command_buffer]);
+
+        self.device.cmd_end_render_pass(command_buffer);
+        self.device.end_command_buffer(command_buffer)?;
+
+
+
+        return Ok(());
+    }
+
+
+
+    unsafe fn update_secondary_command_buffer(&mut self, image_index: usize, model_index: usize) -> Result<vk::CommandBuffer> {
+
+        self.data.secondary_command_buffers.resize_with(image_index + 1, Vec::new);
+        let command_buffers = &mut self.data.secondary_command_buffers[image_index];
+        while model_index >= command_buffers.len() {
+            let allocate_info = vk::CommandBufferAllocateInfo::builder()
+                .command_pool(self.data.command_pools[image_index])
+                .level(vk::CommandBufferLevel::SECONDARY)
+                .command_buffer_count(1);
+
+            command_buffers.push(self.device.allocate_command_buffers(&allocate_info)?[0]);
+        }
+
+        let command_buffer = command_buffers[model_index];
+
+        let inhenritance_info = vk::CommandBufferInheritanceInfo::builder()
+            .render_pass(self.data.render_pass)
+            .subpass(0)
+            .framebuffer(self.data.framebuffers[image_index]);
+
+        let begin_info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::RENDER_PASS_CONTINUE)
+            .inheritance_info(&inhenritance_info);
+
+        self.device.begin_command_buffer(command_buffer, &begin_info)?;
+
+
         self.device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.data.pipeline);
 
         self.device.cmd_bind_vertex_buffers(command_buffer, 0, &[self.data.vertex_buffer], &[0]);
@@ -278,6 +314,12 @@ impl App {
         
 
         self.device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.data.pipeline_layout, 0, &[self.data.descriptor_sets[image_index]], &[]);
+
+        let time = self.start.elapsed().as_secs_f32();
+
+        let model = glm::rotate(&glm::identity(), glm::radians(&glm::vec1(90.0))[0] * time, &glm::vec3(0.0, 0.0, 1.0));
+        let (_, model_bytes, _) = model.as_slice().align_to::<u8>();
+
 
         self.device.cmd_push_constants(
             command_buffer, 
@@ -287,24 +329,27 @@ impl App {
             model_bytes
         );
 
+
+        let opacity = (model_index + 1) as f32 * 0.25;
+
         self.device.cmd_push_constants(
             command_buffer, 
             self.data.pipeline_layout, 
             vk::ShaderStageFlags::FRAGMENT, 
             64, 
-            &0.25f32.to_ne_bytes()[..]
+            &opacity.to_ne_bytes()[..]
         );
 
         self.device.cmd_draw_indexed(command_buffer, self.data.indicies.len() as u32, 1, 0, 0, 0);
-        self.device.cmd_end_render_pass(command_buffer);
+
 
         self.device.end_command_buffer(command_buffer)?;
 
-        return Ok(());
+        return Ok(command_buffer);
     }
 
 
-    pub unsafe fn update_uniform_buffers(&self, image_index: usize) -> Result<()> {
+    unsafe fn update_uniform_buffers(&self, image_index: usize) -> Result<()> {
 
 
         let time = self.start.elapsed().as_secs_f32();
