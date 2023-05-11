@@ -15,11 +15,12 @@ use crate::{app::AppData, buffers::{create_buffer, fill_buffer, copy_buffer}};
 
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Vertex {
     pub pos: Vec3,
     pub color: Vec3,
-    pub tex_coord: Vec2
+    pub tex_coord: Vec2,
+    pub normal: Vec3
 }
 
 
@@ -31,20 +32,15 @@ impl PartialEq for Vertex {
     }
 }
 
-impl Eq for Vertex {}
 
-impl Hash for Vertex {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.pos[0].to_bits().hash(state);
-        self.pos[1].to_bits().hash(state);
-        self.pos[2].to_bits().hash(state);
-        self.color[0].to_bits().hash(state);
-        self.color[1].to_bits().hash(state);
-        self.color[2].to_bits().hash(state);
-        self.tex_coord[0].to_bits().hash(state);
-        self.tex_coord[1].to_bits().hash(state);
-    }
+
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct Vec3Wrapper {
+    v: glm::Vec3
 }
+
+
 
 
 
@@ -57,7 +53,7 @@ pub unsafe fn load_model(data: &mut AppData) -> Result<()> {
         &tobj::LoadOptions { triangulate: true, ..Default::default() }, 
         |_| Ok(Default::default()))?;
 
-    let mut unique_verticies = HashMap::new();
+    let mut unique_verticies: HashMap<glm::Vec3, u32> = HashMap::new();
 
         
     
@@ -67,21 +63,27 @@ pub unsafe fn load_model(data: &mut AppData) -> Result<()> {
             let pos_offset = (3 * index) as usize;
             let tex_coord_offset = (2 * index) as usize;
 
-            let vertex = Vertex {
-                pos: glm::vec3(
-                    model.mesh.positions[pos_offset],
-                    model.mesh.positions[pos_offset + 1],
-                    model.mesh.positions[pos_offset + 2]
-                ),
+
+            /*let vertex = Vertex {
+                pos: ,
                 color: glm::vec3(1.0, 1.0, 1.0),
                 tex_coord: glm::vec2(
                     model.mesh.texcoords[tex_coord_offset],
                     1.0 - model.mesh.texcoords[tex_coord_offset + 1]
-                )
-            };
+                ),
+                normal: glm::vec3(0.0, 0.0, 0.0)
+            };*/
+
+            let pos = Vec3Wrapper {v:glm::vec3(
+                model.mesh.positions[pos_offset],
+                model.mesh.positions[pos_offset + 1],
+                model.mesh.positions[pos_offset + 2]
+            )};
+
+            
 
 
-            if let Some(index) = unique_verticies.get(&vertex) {
+            if let Some(index) = unique_verticies.get(&pos) {
                 data.indicies.push(*index);
             } else {
                 let index = data.vertices.len();
@@ -90,6 +92,8 @@ pub unsafe fn load_model(data: &mut AppData) -> Result<()> {
                 data.indicies.push(index as u32);
             }
         }
+
+        
     }
 
     return Ok(());
@@ -97,8 +101,8 @@ pub unsafe fn load_model(data: &mut AppData) -> Result<()> {
 
 
 impl Vertex {
-    pub fn new(pos: Vec3, color: Vec3, tex_coord: Vec2) -> Vertex {
-        return Vertex {pos, color, tex_coord};
+    pub fn new(pos: Vec3, color: Vec3, tex_coord: Vec2, normal: Vec3) -> Vertex {
+        return Vertex {pos, color, tex_coord, normal};
     }
 
     pub fn binding_description() -> vk::VertexInputBindingDescription {
@@ -108,7 +112,7 @@ impl Vertex {
             .input_rate(vk::VertexInputRate::VERTEX).build()
     }
 
-    pub fn attribute_description() -> [vk::VertexInputAttributeDescription; 3] {
+    pub fn attribute_description() -> [vk::VertexInputAttributeDescription; 4] {
         let pos = vk::VertexInputAttributeDescription::builder()
             .location(0)
             .binding(0)
@@ -127,7 +131,13 @@ impl Vertex {
             .format(vk::Format::R32G32_SFLOAT)
             .offset((size_of::<Vec3>() + size_of::<Vec3>()) as u32).build();
 
-        [pos, color, tex_coord]
+        let normal = vk::VertexInputAttributeDescription::builder()
+            .location(3)
+            .binding(0)
+            .format(vk::Format::R32G32B32_SFLOAT)
+            .offset((size_of::<Vec3>() + size_of::<Vec3>() + size_of::<Vec2>()) as u32).build();
+
+        [pos, color, tex_coord, normal]
     }
 }
 
