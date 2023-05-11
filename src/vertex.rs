@@ -29,15 +29,23 @@ impl PartialEq for Vertex {
         self.pos == other.pos
             && self.color == other.color
             && self.tex_coord == other.tex_coord
+            && self.normal == other.normal
     }
 }
 
+impl Eq for Vertex {}
 
-
-
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct Vec3Wrapper {
-    v: glm::Vec3
+impl Hash for Vertex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.pos[0].to_bits().hash(state);
+        self.pos[1].to_bits().hash(state);
+        self.pos[2].to_bits().hash(state);
+        self.color[0].to_bits().hash(state);
+        self.color[1].to_bits().hash(state);
+        self.color[2].to_bits().hash(state);
+        self.tex_coord[0].to_bits().hash(state);
+        self.tex_coord[1].to_bits().hash(state);
+    }
 }
 
 
@@ -53,48 +61,50 @@ pub unsafe fn load_model(data: &mut AppData) -> Result<()> {
         &tobj::LoadOptions { triangulate: true, ..Default::default() }, 
         |_| Ok(Default::default()))?;
 
-    let mut unique_verticies: HashMap<glm::Vec3, u32> = HashMap::new();
+    let mut unique_verticies: HashMap<Vertex, u32> = HashMap::new();
 
-        
     
     for model in &models {
-        for index in &model.mesh.indices {
-
+        for (i, index) in model.mesh.indices.iter().enumerate() {
             let pos_offset = (3 * index) as usize;
-            let tex_coord_offset = (2 * index) as usize;
+            let tex_coord_offset = (2 * model.mesh.texcoord_indices[i]) as usize;
+            let normal_offset = (3 * model.mesh.normal_indices[i]) as usize;
 
 
-            /*let vertex = Vertex {
-                pos: ,
-                color: glm::vec3(1.0, 1.0, 1.0),
+
+            let vertex = Vertex {
+                pos: glm::vec3(
+                    model.mesh.positions[pos_offset],
+                    model.mesh.positions[pos_offset + 1],
+                    model.mesh.positions[pos_offset + 2]
+                ),
+                color: glm::vec3(1.0, 0.0, 0.0),
                 tex_coord: glm::vec2(
                     model.mesh.texcoords[tex_coord_offset],
                     1.0 - model.mesh.texcoords[tex_coord_offset + 1]
                 ),
-                normal: glm::vec3(0.0, 0.0, 0.0)
-            };*/
+                normal: glm::vec3(
+                    model.mesh.normals[normal_offset],
+                    model.mesh.normals[normal_offset + 1],
+                    model.mesh.normals[normal_offset + 2]
+                )
+            };
 
-            let pos = Vec3Wrapper {v:glm::vec3(
-                model.mesh.positions[pos_offset],
-                model.mesh.positions[pos_offset + 1],
-                model.mesh.positions[pos_offset + 2]
-            )};
-
-            
-
-
-            if let Some(index) = unique_verticies.get(&pos) {
+            if let Some(index) = unique_verticies.get(&vertex) {
                 data.indicies.push(*index);
             } else {
                 let index = data.vertices.len();
-                unique_verticies.insert(vertex, index as u32);
                 data.vertices.push(vertex);
+                unique_verticies.insert(vertex, index as u32);
                 data.indicies.push(index as u32);
             }
-        }
 
-        
+        }
     }
+
+    /*println!("{:?}", data.vertices);
+    println!("{:?}", data.indicies);*/
+
 
     return Ok(());
 }

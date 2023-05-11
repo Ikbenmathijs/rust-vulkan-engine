@@ -334,6 +334,12 @@ impl App {
             time * glm::radians(&glm::vec1(90.0))[0],
             &glm::vec3(0.0, 0.0, 1.0),
         );
+
+        let model = glm::rotate(
+            &model,
+            glm::radians(&glm::vec1(90.0))[0],
+            &glm::vec3(1.0, 0.0, 0.0)
+        );
         
         let (_, model_bytes, _) = model.as_slice().align_to::<u8>();
 

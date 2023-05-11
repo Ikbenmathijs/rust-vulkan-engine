@@ -24,6 +24,6 @@ layout(location=3) in vec3 normal;
 
 void main() {
     gl_Position = ubo.proj * ubo.view * pcs.model * vec4(inPos, 1.0);
-    fragColor = normal;
+    fragColor = inColor;
     fragTexCoord = texCoord;
 }
