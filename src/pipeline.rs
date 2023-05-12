@@ -100,7 +100,9 @@ pub unsafe fn create_pipeline(instance: &Instance, data: &mut AppData, device: &
     let frag_push_constant_range = vk::PushConstantRange::builder()
         .stage_flags(vk::ShaderStageFlags::FRAGMENT)
         .offset(64)
-        .size(4);
+        .size(16);
+
+    
 
 
     let set_layouts = &[data.descriptor_set_layout];

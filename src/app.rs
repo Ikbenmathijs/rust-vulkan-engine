@@ -335,11 +335,11 @@ impl App {
             &glm::vec3(0.0, 0.0, 1.0),
         );
 
-        let model = glm::rotate(
+        /*let model = glm::rotate(
             &model,
             glm::radians(&glm::vec1(90.0))[0],
             &glm::vec3(1.0, 0.0, 0.0)
-        );
+        );*/
         
         let (_, model_bytes, _) = model.as_slice().align_to::<u8>();
 
@@ -361,6 +361,18 @@ impl App {
             vk::ShaderStageFlags::FRAGMENT, 
             64, 
             &opacity.to_ne_bytes()[..]
+        );
+
+        let light_dir = glm::vec3(0.5, 0.5, 0.0);
+
+        let (_, light_dir_bytes, _) = light_dir.as_slice().align_to::<u8>();
+
+        self.device.cmd_push_constants(
+            command_buffer, 
+            self.data.pipeline_layout, 
+            vk::ShaderStageFlags::FRAGMENT, 
+            68, 
+            light_dir_bytes
         );
 
         self.device.cmd_draw_indexed(command_buffer, self.data.indicies.len() as u32, 1, 0, 0, 0);
