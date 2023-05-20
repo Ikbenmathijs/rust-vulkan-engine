@@ -10,15 +10,19 @@ layout(location=3) in vec3 pos;
 layout(binding=1) uniform sampler2D texSampler;
 
 layout(push_constant) uniform PushConstants {
-    layout(offset=64) float opacity;
-    
+    layout(offset=64) vec3 light_dir;
+    layout(offset=76) float opacity;
 } pcs;
 
+
 void main() {
+
+    vec3 N = normalize(normal);
+
+    float diffuse = max(dot(N, pcs.light_dir), 0);
+
     float ambientStrength = 0.1;
-    vec4 texureColor = vec4(texture(texSampler, texCoord).rgb, pcs.opacity);
+    vec4 textureColor = texture(texSampler, texCoord);
 
-    vec4 ambient = texureColor * ambientStrength;
-
-
+    outColor = vec4(textureColor.rgb  * (diffuse + 0.02), 1);
 }
